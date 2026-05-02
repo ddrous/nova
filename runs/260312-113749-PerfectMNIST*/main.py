@@ -1552,6 +1552,13 @@ def inference_rollout_morph(model, ref_video, coords_grid, context_ratio=0.0, co
         # ratio = jnp.clip((step_idx+1) / T, 0, 1)
         # a_t = ratio * a_zeros + (1-ratio) * a_t
 
+        # ## Start the ratioat t=10 to create a more abrupt morphing effect
+        # morph_ratio = jnp.clip((step_idx+1 - T//2) / (T//2), 0, 1) # Starts morphing at the halfway point
+
+        # if corrupt:
+        #     a_t = (1 - morph_ratio) * a_t + morph_ratio * a_zeros
+
+
         m_tp1 = model.action_model.encode_memory(m_t, step_idx, z_t, a_t)
 
 
