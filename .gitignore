@@ -34,6 +34,8 @@ latent_action_models/nohup.log
 !data/README.md
 !data/MiniGrid/gendata.py
 
+# assets/*
+!assets/README.md
 
 # Track only the most successful runs
 runs/*
