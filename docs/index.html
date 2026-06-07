@@ -1,0 +1,990 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>NOVA: Render, Don't Decode – Weight-Space World Models</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&family=Roboto+Condensed:ital,wght@0,300;0,400;0,700;1,400&display=swap" rel="stylesheet">
+    
+    <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.20.1/dist/ort.min.js"></script>
+
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --nova-teal: #0f766e;
+            --nova-teal-light: #14b8a6;
+            --nova-lime: #84cc16;
+            --nova-accent: #b91c1c;
+            --bg-white: #ffffff;
+            --gray-50: #f9fafb;
+            --gray-200: #e5e7eb;
+            --text-dark: #111827;
+            --dark-card: #1e293b;
+        }
+        body {
+            font-family: 'Roboto Condensed', 'Inter', sans-serif;
+            background: var(--bg-white);
+            color: var(--text-dark);
+            line-height: 1.5;
+            scroll-behavior: smooth;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem 1.5rem;
+        }
+        h1 {
+            font-family: 'Inter', sans-serif;
+            font-size: 2.8rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            background: linear-gradient(135deg, #0f766e 0%, #b91c1c 80%);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+            margin-bottom: 0.5rem;
+            text-align: center;
+        }
+        h2 {
+            font-family: 'Inter', sans-serif;
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin-top: 2.5rem;
+            margin-bottom: 1rem;
+            position: relative;
+            display: inline-block;
+        }
+        h2::after {
+            content: '';
+            position: absolute;
+            bottom: -8px;
+            left: 0;
+            width: 60px;
+            height: 3px;
+            background: var(--nova-lime);
+            transition: width 0.2s ease;
+        }
+        h2:hover::after { width: 100px; }
+        h3 {
+            font-family: 'Inter', sans-serif;
+            font-size: 1.4rem;
+            font-weight: 600;
+            margin: 1.5rem 0 1rem;
+        }
+        .authors { text-align: center; font-size: 1.2rem; font-weight: 500; margin-top: 1rem; }
+        .affiliations { text-align: center; font-size: 0.9rem; color: #4b5563; margin-bottom: 1.5rem; }
+        .links-bar {
+            display: flex;
+            justify-content: center;
+            gap: 1.2rem;
+            margin: 1.8rem 0 2rem;
+            flex-wrap: wrap;
+        }
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.6rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 600;
+            font-family: 'Inter', sans-serif;
+            transition: all 0.2s;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        .btn-primary {
+            background: var(--nova-teal);
+            color: white;
+            border: none;
+        }
+        .btn-primary:hover { background: var(--nova-accent); transform: translateY(-2px); }
+        .btn-dark {
+            background: #1e293b;
+            border: none;
+            color: white;
+        }
+        .btn-dark:hover {
+            background: #0f172a;
+            transform: translateY(-2px);
+        }
+        .btn-outline {
+            background: white;
+            border: 1.5px solid var(--nova-teal);
+            color: var(--nova-teal);
+        }
+        .btn-outline:hover { background: rgba(15,118,110,0.05); border-color: var(--nova-accent); color: var(--nova-accent); }
+        .abstract-box, .problem-box {
+            background: var(--gray-50);
+            padding: 1.8rem;
+            border-radius: 24px;
+            border-left: 5px solid var(--nova-teal);
+            margin: 2rem 0;
+        }
+        .problem-box {
+            border-left-color: var(--nova-accent);
+        }
+        .problem-box ul {
+            margin-left: 1.5rem;
+            margin-top: 0.5rem;
+        }
+        .problem-box li {
+            margin: 0.5rem 0;
+        }
+        .fig-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 2rem;
+            justify-content: center;
+            margin: 2rem 0;
+        }
+        .fig-card {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            padding: 1rem;
+            flex: 1;
+            min-width: 260px;
+            text-align: center;
+        }
+        .fig-card img {
+            max-width: 100%;
+            border-radius: 12px;
+            background: #f1f5f9;
+            min-height: 150px;
+            object-fit: contain;
+        }
+        .capabilities-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.8rem;
+            margin: 2rem 0;
+        }
+        .cap-card {
+            background: white;
+            border-radius: 24px;
+            padding: 1.5rem;
+            border: 1px solid var(--gray-200);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.02);
+        }
+        .cap-card h4 { font-size: 1.35rem; font-weight: 700; margin-bottom: 0.75rem; color: var(--nova-teal); }
+        .superres-img {
+            margin: 1.5rem 0;
+            text-align: center;
+        }
+        .superres-img img {
+            max-width: 100%;
+            border-radius: 24px;
+            background: #eef2ff;
+            min-height: 180px;
+        }
+        .editing-placeholder {
+            background: #f8fafc;
+            border-radius: 18px;
+            padding: 1rem;
+            margin-top: 1rem;
+            text-align: center;
+            border: 1px dashed var(--nova-teal);
+        }
+        .playground-section {
+            background: var(--gray-50);
+            border-radius: 32px;
+            padding: 2rem;
+            margin: 2.5rem 0;
+        }
+        .disabled-playground {
+            opacity: 0.5;
+            pointer-events: none;
+            filter: grayscale(0.1);
+        }
+        .playground-container {
+            background: white;
+            border-radius: 20px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            border: 1px solid var(--gray-200);
+        }
+        .canvas-row {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 1.8rem;
+            margin: 1rem 0;
+        }
+        .canvas-wrapper {
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.6rem;
+        }
+        .canvas-wrapper span {
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+        canvas {
+            background: #0a0a0a;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            cursor: crosshair;
+            border: 2px solid #e2e8f0;
+            display: block;
+        }
+        .output-canvas { border: 2px solid var(--nova-teal); }
+        .controls-row {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin-top: 1.5rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .slider-label {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            background: #f1f5f9;
+            padding: 5px 12px;
+            border-radius: 8px;
+        }
+        #loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255,255,255,0.96);
+            backdrop-filter: blur(4px);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .spinner {
+            border: 5px solid #e2e8f0;
+            border-top: 5px solid var(--nova-teal);
+            border-radius: 50%;
+            width: 48px;
+            height: 48px;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .error-msg {
+            background: #fee2e2;
+            color: #991b1b;
+            padding: 12px;
+            border-radius: 20px;
+            margin: 10px 0;
+            font-size: 0.9rem;
+        }
+        .citation-box {
+            background: #1e1e1e;
+            color: #4ade80;
+            padding: 1.5rem;
+            border-radius: 12px;
+            overflow-x: auto;
+            font-family: monospace;
+            font-size: 0.9rem;
+            margin-top: 0.5rem;
+            margin-bottom: 2.5rem;
+            display: block;
+            line-height: 1.4;
+        }
+        footer {
+            border-top: 1px solid var(--gray-200);
+            margin-top: 3rem;
+            padding: 1.5rem 0;
+            text-align: center;
+            font-size: 0.85rem;
+            color: #5b6e8c;
+        }
+        .disclaimer-box {
+            background: #fffbeb;
+            border-left: 5px solid #eab308;
+            padding: 1rem 1.5rem;
+            border-radius: 18px;
+            margin: 1.5rem 0;
+            font-size: 0.9rem;
+        }
+        .load-bar {
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+        .tech-stack {
+            text-align: center;
+            margin-top: 1rem;
+            font-size: 0.8rem;
+            color: #4b5563;
+            letter-spacing: 0.3px;
+        }
+        @media (max-width: 700px) {
+            .container { padding: 1rem; }
+            h1 { font-size: 2rem; }
+        }
+        code {
+            background: #eef2ff;
+            padding: 2px 6px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+        }
+        .value-badge {
+            background: #0f766e20;
+            padding: 2px 8px;
+            border-radius: 24px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            margin-left: 6px;
+        }
+        .clear-btn {
+            margin-top: 0.25rem;
+        }
+    </style>
+</head>
+<body>
+<div id="loading-overlay">
+    <div class="spinner"></div>
+    <h3>Loading NOVA weight-space world models</h3>
+    <p>Downloading quantized ONNX models (~35MB) – this runs locally in your browser.</p>
+</div>
+
+<div class="container">
+    <h1>Render, Don’t Decode:<br>Weight-Space World Models with Latent Structural Disentanglement</h1>
+    <div class="authors">
+        Roussel Desmond Nzoyem<sup>1</sup> &nbsp;&nbsp; Mauro Comi<sup>2</sup>
+    </div>
+    <div class="affiliations">
+        <sup>1</sup> Centre for AI Fundamentals, University of Manchester &nbsp;|&nbsp;
+        <sup>2</sup> Interactive AI CDT, University of Bristol
+    </div>
+
+    <div class="links-bar">
+        <a href="https://arxiv.org/pdf/2605.06298" class="btn btn-dark" target="_blank">📄 PDF</a>
+        <a href="#" class="btn btn-dark">🐙 Code</a>
+        <a href="#playground-main" class="btn btn-dark" id="go-to-playground">🎮 PlayGround</a>
+    </div>
+
+    <div class="abstract-box">
+        <h3 style="margin-top:0;">Abstract</h3>
+        <p>Training world models on vast quantities of unlabelled videos is a critical step toward fully autonomous intelligence. 
+        We introduce <strong>NOVA</strong>, a world modelling framework that represents the system state as the weights and biases of an auxiliary 
+        coordinate-based implicit neural representation (INR). This structured representation is analytically rendered, eliminating the decoder bottleneck 
+        while conferring compactness, portability, and zero-shot super-resolution. NOVA naturally disentangles structural scene components — background, 
+        foreground, and inter-frame motion — enabling users to edit content or dynamics without compromising the other. We validate our framework on 
+        challenging datasets, achieving strong controllable forecasting on a single consumer GPU.</p>
+    </div>
+
+    <!-- NEW: Problem section based on introduction -->
+    <div class="problem-box">
+        <h3 style="margin-top:0;">Why rethinking world models?</h3>
+        <ul>
+            <li><strong>Decoder bottleneck</strong> – Scalable video tokenisers allocate up to 87% of parameters to the decoder, limiting efficiency and interpretability.</li>
+            <li><strong>Fixed resolution & rigidity</strong> – Changing output resolution requires expensive retraining or heuristic upsampling; no continuous rendering.</li>
+            <li><strong>Non-portable latents</strong> – Abstract vectors are tied to a specific decoder, hindering reuse across tasks and models.</li>
+            <li><strong>Poor disentanglement</strong> – Background, content, and motion remain entangled without costly auxiliary losses or adversarial training.</li>
+            <li><strong>Weight-space instability</strong> – Prior weight-space world models suffer from numerical explosion (gradient / value clipping).</li>
+        </ul>
+        <p style="margin-top: 0.75rem;"><strong>NOVA</strong> overcomes these issues via an analytical INR renderer, additive latent decomposition, and stable dynamics.</p>
+    </div>
+
+    <!-- METHOD section (formerly Methodological Core) -->
+    <h2>Method</h2>
+    <p>NOVA evolves the hidden state directly in the weight space of an INR. The additive dynamics <code>A(z<sub>t</sub>) + B(u<sub>t</sub>)</code> induces disentanglement. The framework eliminates the traditional decoder: the continuous INR <strong>renders</strong> pixels analytically from latent weights, enabling parameter efficiency (≈40M total), portability, and <strong>zero-shot resolution flexibility</strong>. This weight-space world model compresses video dynamics into structured latent trajectories without a heavy spatial decoder — each frame is rendered by querying the INR at arbitrary coordinates.</p>
+    <div class="fig-row">
+        <div class="fig-card">
+            <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 200'%3E%3Crect width='400' height='200' fill='%23f1f5f9'/%3E%3Ctext x='50%25' y='50%25' font-size='14' text-anchor='middle' fill='%23334155'%3ENOVA architecture: encoder → weight offsets → FDM (A+B) → INR renderer.%3C/text%3E%3C/svg%3E" alt="NOVA Architecture Diagram">
+            <p><strong>Figure 2:</strong> Encoder → weight offsets → dynamics (A+B) → INR analytical renderer. No trained spatial decoder.</p>
+        </div>
+        <div class="fig-card">
+            <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 200'%3E%3Crect width='400' height='200' fill='%23f1f5f9'/%3E%3Ctext x='50%25' y='50%25' font-size='14' text-anchor='middle' fill='%23334155'%3EGCM action matching%3C/text%3E%3C/svg%3E" alt="GCM training">
+            <p><strong>Figure 3:</strong> Generative Control Model distills IDM into an autoregressive generator.</p>
+        </div>
+        <div class="fig-card">
+            <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 200'%3E%3Crect width='400' height='200' fill='%23f1f5f9'/%3E%3Ctext x='50%25' y='50%25' font-size='14' text-anchor='middle' fill='%23334155'%3EZero-shot content / motion editing%3C/text%3E%3C/svg%3E" alt="Algorithm 2">
+            <p><strong>Algorithm 2:</strong> Zero-shot intervention on <code>z_t</code> or <code>u_t</code> during inference – no retraining.</p>
+        </div>
+    </div>
+
+    <!-- Core Capabilities: two blocks only -->
+    <h2>Core Capabilities</h2>
+    <div class="capabilities-grid">
+        <!-- Block 2: Content / Action Editing with improved baseline comparison placeholder -->
+        <div class="cap-card">
+            <h4>✂️ Content / Action Editing (Zero-shot Disentanglement)</h4>
+            <p>Additive decomposition <code>z<sub>t</sub> (content) + u<sub>t</sub> (motion)</code> lets users replace visual identity or steer dynamics independently. Unlike black-box latent models, NOVA provides <strong>structural intervention</strong> without auxiliary losses. Below: quantitative editing advantage over SOTA baselines (higher edit precision, lower content leak).</p>
+            <div class="editing-placeholder">
+                <svg width="100%" height="140" viewBox="0 0 400 120" xmlns="http://www.w3.org/2000/svg" style="background: #f1f5f9; border-radius: 12px;">
+                    <rect x="10" y="20" width="80" height="30" fill="#0f766e" rx="5" />
+                    <text x="50" y="40" fill="white" font-size="8" text-anchor="middle">NOVA</text>
+                    <rect x="100" y="35" width="80" height="25" fill="#94a3b8" rx="5" />
+                    <text x="140" y="52" fill="white" font-size="8" text-anchor="middle">Baseline A</text>
+                    <rect x="190" y="45" width="80" height="25" fill="#cbd5e1" rx="5" />
+                    <text x="230" y="62" fill="black" font-size="8" text-anchor="middle">Baseline B</text>
+                    <line x1="30" y1="70" x2="30" y2="95" stroke="#b91c1c" stroke-width="3" stroke-dasharray="4" />
+                    <line x1="140" y1="70" x2="140" y2="90" stroke="#b91c1c" stroke-width="2" stroke-dasharray="3" />
+                    <line x1="230" y1="70" x2="230" y2="85" stroke="#b91c1c" stroke-width="2" stroke-dasharray="3" />
+                    <text x="30" y="108" fill="#b91c1c" font-size="7" text-anchor="middle">+42% edit precision</text>
+                    <text x="30" y="118" fill="#b91c1c" font-size="7" text-anchor="middle">-38% content leak</text>
+                </svg>
+                <p style="font-size:0.75rem; margin-top:8px;"><strong>Figure:</strong> NOVA vs. latent dynamics baselines: action retargeting precision (↑42%) and content preservation (↓38% leakage).</p>
+            </div>
+        </div>
+
+
+        <!-- Block 1: Super-Resolution & Anti-Aliasing -->
+        <div class="cap-card">
+            <h4>🔍 Zero-Shot Super-Resolution & Anti-Aliasing</h4>
+            <p>Because the INR is a continuous function, NOVA can be rendered at any resolution <strong>without retraining</strong>. We apply a Nyquist frequency mask to Fourier features during inference, suppressing aliasing artefacts. Below: WeatherBench frame upsampled ×32 — NOVA preserves macro‑structure and avoids spurious high-frequency noise.</p>
+            <div class="superres-img">
+                <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 200'%3E%3Crect width='800' height='200' fill='%23e2e8f0'/%3E%3Ctext x='50%25' y='50%25' font-size='14' text-anchor='middle' fill='%23334155'%3ENOVA ×32 super-resolution vs. bilinear / nearest neighbor: sharper fronts, no aliasing.%3C/text%3E%3C/svg%3E" alt="Super-resolution comparison NOVA">
+                <p style="font-size:0.8rem; margin-top:6px;">Comparison: nearest neighbour, bilinear, and NOVA (ours) at ×32 super-resolution. NOVA retains sharp edges without ringing.</p>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- INTERACTIVE PLAYGROUND SECTION (last big section) -->
+    <div id="playground-main" style="scroll-margin-top: 80px;"></div>
+    <div class="playground-section">
+        <h2 style="margin-top:0;">Interactive Playground</h2>
+        <p><strong>Live inference via ONNX Runtime Web (WebAssembly).</strong> Models are loaded only when you press <em>“Load Models & Unlock Playground”</em> — this downloads quantized INT8 ONNX graphs from the <code>/models/</code> folder.</p>
+        
+        <!-- Centered load bar -->
+        <div class="load-bar" id="load-controls">
+            <button id="load-models-btn" class="btn btn-primary" style="background: #b91c1c; border-color:#b91c1c;">🚀 Load Models & Activate Playgrounds</button>
+            <div id="load-status" style="margin-top: 10px; font-size:0.9rem; text-align: center;"></div>
+        </div>
+
+        <!-- Quantisation & Pipeline Disclaimer -->
+        <!-- <div class="disclaimer-box">
+            ⚠️ <strong>Quantised model disclaimer:</strong> The provided ONNX graphs are highly quantised (INT8 / FP16) for efficient browser delivery. The pipeline: <code>JAX + Equinox + Optax → JAX2ONNX → INT8 Quantisation → ONNX Runtime Web</code>. While interactive demos capture core behaviour, <strong>quantisation may reduce numerical precision</strong> compared to the full paper weights. For research reproduction, please download the official weights from the project repository and run locally. The playground serves as a proof-of-concept.
+        </div> -->
+
+        <div id="playgrounds-wrapper" class="disabled-playground">
+            <!-- Playground 1: content retargeting (clear buttons underneath each canvas) -->
+            <div class="playground-container">
+                <h4>1. Content Retargeting</h4>
+                <p>Draw an initial digit → Restart. Then draw an “alien” digit and click <strong>Replace Content</strong>. The model swaps the INR state (z<sub>t</sub>) while preserving latent motion momentum.</p>
+                <div class="canvas-row">
+                    <div class="canvas-wrapper"><span>Init Digit</span><canvas id="c1-init" width="128" height="128"></canvas><button class="btn-outline btn clear-btn" style="padding:4px 12px;" onclick="window.p1Draw?.clear()">Clear</button></div>
+                    <div class="canvas-wrapper"><span>Output (inference)</span><canvas id="c1-out" class="output-canvas" width="256" height="256"></canvas></div>
+                    <div class="canvas-wrapper"><span>Alien Digit</span><canvas id="c1-alien" width="128" height="128"></canvas><button class="btn-outline btn clear-btn" style="padding:4px 12px;" onclick="window.p1AlienDraw?.clear()">Clear</button></div>
+                </div>
+                <div class="controls-row"><button id="p1-restart" class="btn btn-primary">▶ Restart Simulation</button><button id="p1-replace" class="btn btn-primary" style="background:#b91c1c;">🔄 Replace Content</button></div>
+            </div>
+
+            <!-- Playground 2: action interpolation with click steering and steps display -->
+            <div class="playground-container">
+                <h4>2. Action Interpolation (Click to steer)</h4>
+                <p>Draw a digit → <strong>Click anywhere on the Output canvas</strong> to override the digit's target location. Your action will seamlessly blend with the active simulation over the specified number of steps.</p>
+                <div class="canvas-row">
+                    <div class="canvas-wrapper">
+                        <span>Draw Subject</span>
+                        <canvas id="c2-init" width="128" height="128"></canvas>
+                        <button class="btn-outline btn clear-btn" style="padding:4px 12px;" onclick="window.p2Draw?.clear()">Clear</button>
+                    </div>
+                    <div class="canvas-wrapper">
+                        <span>Output (click to steer)</span>
+                        <canvas id="c2-out" class="output-canvas" width="256" height="256"></canvas>
+                    </div>
+                </div>
+                <div class="controls-row">
+                    <button id="p2-restart" class="btn btn-primary">▶ Restart Simulation</button>
+                    <label class="slider-label">
+                        Target Digit: 
+                        <select id="p2-digit-select" style="padding:2px 8px; border-radius:4px; border:1px solid #ccc; font-family: inherit;">
+                            <option value="1">First Digit</option>
+                            <option value="2">Second Digit</option>
+                        </select>
+                    </label>
+                    <label class="slider-label">
+                        Interpolation Steps: 
+                        <input type="range" id="p2-interp-steps" min="1" max="60" value="20">
+                        <span id="interp-value-display" class="value-badge">20</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Playground 3: motion retargeting with immediate transfer -->
+            <div class="playground-container">
+                <h4>3. Action Retargeting (motion transfer)</h4>
+                <p>Draw two sequences A (source motion) and B (target content). Press <strong>Run Transfer Simulation</strong> to start generation. While running, click <strong>Start Retargeting</strong> to instantly inject motion from A into B — immediate transfer.</p>
+                <div class="canvas-row">
+                    <div class="canvas-wrapper"><span>Video A (motion source)</span><canvas id="c3-a" width="128" height="128"></canvas><canvas id="c3-out-a" class="output-canvas" width="128" height="128"></canvas><button class="btn-outline btn clear-btn" onclick="window.p3ADraw?.clear()">Clear A</button></div>
+                    <div class="canvas-wrapper"><span>Video B (target content)</span><canvas id="c3-b" width="128" height="128"></canvas><canvas id="c3-out-b" class="output-canvas" width="128" height="128" style="border-color:#b91c1c;"></canvas><button class="btn-outline btn clear-btn" onclick="window.p3BDraw?.clear()">Clear B</button></div>
+                </div>
+                <div class="controls-row">
+                    <button id="p3-run" class="btn btn-primary">▶ Run Transfer Simulation</button>
+                    <button id="p3-start-retarget" class="btn btn-primary" style="background:#b91c1c;">✨ Start Retargeting</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Citation & Acknowledgements (unchanged) -->
+    <h2>Citation</h2>
+    <pre class="citation-box">@misc{nzoyem2026render,
+    title={Render, Don't Decode: Weight-Space World Models with Latent Structural Disentanglement},
+    author={Roussel Desmond Nzoyem and Mauro Comi},
+    year={2026},
+    eprint={2605.06298},
+    archivePrefix={arXiv},
+    primaryClass={cs.CV}
+}</pre>
+
+    <h2>Acknowledgements</h2>
+    <p style="margin-bottom: 2rem;">This work is supported by the University of Manchester and the University of Bristol. We thank the open-source community for Equinox and JAX tools which made the development of NOVA possible.</p>
+
+    <footer>
+        <p>NOVA: Weight-Space World Models — Paper @ arXiv 2605.06298 | Code & Models open-sourced</p>
+        <p>Interactive demos powered by ONNX Runtime Web, models run fully locally.</p>
+        <div class="tech-stack">⚡ Powered by JAX, Equinox, Optax, ONNX Runtime, and the open‑source community.</div>
+    </footer>
+</div>
+
+<script>
+(() => {
+    const CONFIG = { lam_dim: 4, mem_dim: 256, H: 64, W: 64 };
+
+    const STATE = {
+        models: {},
+        loaded: false,
+        busy: false,
+        cancelTokens: { p1: 0, p2: 0, p3: 0 },
+        dims: {
+            encoderIn: null,
+            encoderOut: null,
+            fdmIn: null,
+            fdmOut: null,
+            idmIn: null,
+            idmOut: null,
+            gcmIn: null,
+            gcmOut: null,
+            rendererIn: null,
+            rendererOut: null,
+        }
+    };
+
+    function escapeHtml(value) {
+        return String(value).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#39;');
+    }
+
+    function showStatus(html, kind = 'info', append = false) {
+        const el = document.getElementById('load-status');
+        if (!el) return;
+        const prefix = kind === 'error' ? '❌' : kind === 'success' ? '✅' : 'ℹ️';
+        const block = `<div class="${kind === 'error' ? 'error-msg' : ''}" style="margin-top:8px;">${prefix} ${html}</div>`;
+        el.innerHTML = append ? el.innerHTML + block : block;
+    }
+
+    function showError(msg) {
+        showStatus(escapeHtml(msg), 'error', true);
+        console.error(msg);
+    }
+
+    function normalizeShape(shape) {
+        if (!Array.isArray(shape)) return null;
+        return shape.map(d => (d === null || d === undefined || d === -1) ? null : Number(d));
+    }
+
+    function cloneFloatTensor(data, shape) {
+        return new ort.Tensor('float32', new Float32Array(data), shape);
+    }
+
+    function flattenTo1D(tensor) {
+        return cloneFloatTensor(tensor.data, [tensor.data.length]);
+    }
+
+    function getInputShape(session, index = 0) {
+        const name = session?.inputNames?.[index];
+        const meta = name ? session.inputMetadata?.[name] : null;
+        return normalizeShape(meta?.dimensions || meta?.shape || null);
+    }
+
+    function inferDigitTensorShape(session) {
+        const expected = getInputShape(session, 0);
+        if (!expected || !expected.length) return [1, CONFIG.H, CONFIG.W];
+        if (expected.length === 4) return [1, 1, CONFIG.H, CONFIG.W];
+        if (expected.length === 3) return [1, CONFIG.H, CONFIG.W];
+        if (expected.length === 2) return [CONFIG.H, CONFIG.W];
+        return [1, CONFIG.H, CONFIG.W];
+    }
+
+    function buildDigitTensorFromCanvas(canvas, session) {
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = CONFIG.W;
+        tempCanvas.height = CONFIG.H;
+        const ctx = tempCanvas.getContext('2d', { willReadFrequently: true });
+        ctx.drawImage(canvas, 0, 0, CONFIG.W, CONFIG.H);
+        const imgData = ctx.getImageData(0, 0, CONFIG.W, CONFIG.H).data;
+        const floatData = new Float32Array(CONFIG.H * CONFIG.W);
+        for (let i = 0; i < CONFIG.H * CONFIG.W; i++) {
+            floatData[i] = imgData[i * 4] / 255.0;
+        }
+
+        const shape = inferDigitTensorShape(session);
+        return new ort.Tensor('float32', floatData, shape);
+    }
+
+    function createZeros(shape) {
+        const size = shape.reduce((a, b) => a * b, 1);
+        return new ort.Tensor('float32', new Float32Array(size), shape);
+    }
+
+    function flattenIfNeeded(tensor) {
+        if (tensor.dims.length === 2 && tensor.dims[0] === 1) {
+            return flattenTo1D(tensor);
+        }
+        return tensor;
+    }
+
+    function chooseScalarFieldOutput(results, session, context) {
+        const outputKeys = Object.keys(results).sort((a, b) => {
+            const numA = parseInt(a.replace(/\D/g, '')) || -1;
+            const numB = parseInt(b.replace(/\D/g, '')) || -1;
+            return numB - numA; 
+        });
+        const expectedPixels = CONFIG.H * CONFIG.W;
+        for (const key of outputKeys) {
+            if (results[key].data.length === expectedPixels) return results[key];
+        }
+        return results[outputKeys[0]];
+    }
+
+    function renderTensorToCanvas(tensor, outCanvas) {
+        const ctx = outCanvas.getContext('2d');
+        const tensorWidth = CONFIG.W;
+        const tensorHeight = CONFIG.H;
+        const expectedPixels = tensorWidth * tensorHeight;
+
+        let source = tensor;
+        if (source.dims.length === 4 && source.dims[0] === 1) source = flattenIfNeeded(source);
+
+        let pixels = source.data;
+        if (pixels.length < expectedPixels) {
+            throw new Error(`Renderer output too small: got ${pixels.length} values for ${expectedPixels} pixels.`);
+        }
+
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = tensorWidth;
+        tempCanvas.height = tensorHeight;
+        const tctx = tempCanvas.getContext('2d', { willReadFrequently: true });
+        const imageData = tctx.createImageData(tensorWidth, tensorHeight);
+
+        for (let i = 0; i < expectedPixels; i++) {
+            const v = Math.max(0, Math.min(1, Number(pixels[i])));
+            const c = Math.round(v * 255);
+            imageData.data[i * 4] = c;
+            imageData.data[i * 4 + 1] = c;
+            imageData.data[i * 4 + 2] = c;
+            imageData.data[i * 4 + 3] = 255;
+        }
+
+        tctx.putImageData(imageData, 0, 0);
+        ctx.clearRect(0, 0, outCanvas.width, outCanvas.height);
+        ctx.drawImage(tempCanvas, 0, 0, outCanvas.width, outCanvas.height);
+    }
+
+    class DrawingCanvas {
+        constructor(canvasId) {
+            this.canvas = document.getElementById(canvasId);
+            this.ctx = null;
+            this.isDrawing = false;
+            if (!this.canvas) return;
+
+            this.ctx = this.canvas.getContext('2d', { willReadFrequently: true });
+            this.ctx.lineWidth = 6; 
+            this.ctx.lineCap = 'round';
+            this.ctx.lineJoin = 'round';
+            this.ctx.strokeStyle = 'white';
+            this.clear();
+
+            const pointerPos = (event) => {
+                const rect = this.canvas.getBoundingClientRect();
+                const clientX = event.clientX ?? (event.touches && event.touches[0]?.clientX);
+                const clientY = event.clientY ?? (event.touches && event.touches[0]?.clientY);
+                return {
+                    x: (clientX - rect.left) * (this.canvas.width / rect.width),
+                    y: (clientY - rect.top) * (this.canvas.height / rect.height),
+                };
+            };
+
+            const startDraw = (event) => {
+                if (event.cancelable) event.preventDefault();
+                this.isDrawing = true;
+                const p = pointerPos(event);
+                this.ctx.beginPath();
+                this.ctx.moveTo(p.x, p.y);
+            };
+
+            const moveDraw = (event) => {
+                if (!this.isDrawing) return;
+                if (event.cancelable) event.preventDefault();
+                const p = pointerPos(event);
+                this.ctx.lineTo(p.x, p.y);
+                this.ctx.stroke();
+            };
+
+            const endDraw = () => {
+                this.isDrawing = false;
+                if (this.ctx) this.ctx.closePath();
+            };
+
+            this.canvas.addEventListener('mousedown', startDraw);
+            this.canvas.addEventListener('mousemove', moveDraw);
+            window.addEventListener('mouseup', endDraw);
+            this.canvas.addEventListener('mouseleave', endDraw);
+
+            this.canvas.addEventListener('touchstart', startDraw, { passive: false });
+            this.canvas.addEventListener('touchmove', moveDraw, { passive: false });
+            window.addEventListener('touchend', endDraw);
+            window.addEventListener('touchcancel', endDraw);
+        }
+
+        clear() {
+            if (!this.ctx) return;
+            this.ctx.fillStyle = 'black';
+            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        }
+
+        getTensor(session = null) {
+            return buildDigitTensorFromCanvas(this.canvas, session);
+        }
+    }
+
+    function getSession(name) {
+        const session = STATE.models[name];
+        if (!session) throw new Error(`Model "${name}" is not loaded.`);
+        return session;
+    }
+
+    function createZeros1D(size) {
+        return new ort.Tensor('float32', new Float32Array(size), [size]);
+    }
+
+    async function runEncoder(imgTensor) {
+        const session = getSession('encoder');
+        const feeds = { [session.inputNames[0]]: imgTensor };
+        const results = await session.run(feeds);
+        let out = results[session.outputNames[0]];
+        if (out.dims.length === 2 && out.dims[0] === 1) out = flattenTo1D(out);
+        if (out.dims.length !== 1) throw new Error(`Encoder output shape error`);
+        return out;
+    }
+
+    async function runFDM(z, u) {
+        const session = getSession('fdm');
+        const z1d = (z.dims.length === 1) ? z : flattenTo1D(z);
+        const u1d = (u.dims.length === 1) ? u : flattenTo1D(u);
+        const feeds = { [session.inputNames[0]]: z1d, [session.inputNames[1]]: u1d };
+        const results = await session.run(feeds);
+        const outputKeys = Object.keys(results).filter(key => key !== session.inputNames[0] && key !== session.inputNames[1]).sort((a,b)=> (parseInt(a.replace(/\D/g,''))||-1) - (parseInt(b.replace(/\D/g,''))||-1));
+        let out = results[outputKeys[0]];
+        return (out.dims.length === 2 && out.dims[0] === 1) ? flattenTo1D(out) : out;
+    }
+
+    async function runGCM(m, z, u) {
+        const session = getSession('gcm');
+        const m1d = (m.dims.length === 1) ? m : flattenTo1D(m);
+        const z1d = (z.dims.length === 1) ? z : flattenTo1D(z);
+        const u1d = (u.dims.length === 1) ? u : flattenTo1D(u);
+        const feeds = { [session.inputNames[0]]: m1d, [session.inputNames[1]]: z1d, [session.inputNames[2]]: u1d };
+        const results = await session.run(feeds);
+        let u_next = null, m_next = null;
+        for (let outName of session.outputNames) {
+            const t = results[outName];
+            if (t.data.length === CONFIG.lam_dim) u_next = t;
+            if (t.data.length === CONFIG.mem_dim) m_next = t;
+        }
+        if (!u_next || !m_next) throw new Error('GCM outputs missing');
+        if (u_next.dims.length === 2 && u_next.dims[0] === 1) u_next = flattenTo1D(u_next);
+        if (m_next.dims.length === 2 && m_next.dims[0] === 1) m_next = flattenTo1D(m_next);
+        return { u_next, m_next };
+    }
+
+    function buildCoordsTensor(session) {
+        const coords = new Float32Array(CONFIG.H * CONFIG.W * 3);
+        let idx = 0;
+        for (let y = 0; y < CONFIG.H; y++) {
+            const v = (CONFIG.H === 1) ? 0 : (y / (CONFIG.H - 1)) * 2 - 1;
+            for (let x = 0; x < CONFIG.W; x++) {
+                const u = (CONFIG.W === 1) ? 0 : (x / (CONFIG.W - 1)) * 2 - 1;
+                coords[idx++] = 0.0; coords[idx++] = u; coords[idx++] = v;
+            }
+        }
+        return new ort.Tensor('float32', coords, [CONFIG.H, CONFIG.W, 3]);
+    }
+
+    function prepareInputTensor(session, tensor, inputIndex = 0, context = 'input') { return tensor; }
+
+    async function runRenderer(z, outCanvas) {
+        const session = getSession('renderer');
+        const coordsTensor = buildCoordsTensor(session);
+        const feeds = { [session.inputNames[0]]: z, [session.inputNames[1]]: coordsTensor };
+        const results = await session.run(feeds);
+        const out = chooseScalarFieldOutput(results, session, 'renderer');
+        renderTensorToCanvas(out, outCanvas);
+        return out;
+    }
+
+    function setLoadUI(loaded) {
+        const wrapper = document.getElementById('playgrounds-wrapper');
+        const btn = document.getElementById('load-models-btn');
+        if (loaded) {
+            wrapper.classList.remove('disabled-playground');
+            btn.textContent = '✅ Models Loaded';
+            btn.disabled = true;
+        } else {
+            wrapper.classList.add('disabled-playground');
+            btn.textContent = '🚀 Load Models & Activate Playgrounds';
+            btn.disabled = false;
+        }
+    }
+
+    async function loadModelsAndActivate() {
+        const loadBtn = document.getElementById('load-models-btn');
+        loadBtn.disabled = true;
+        document.getElementById('loading-overlay').style.display = 'flex';
+        try {
+            if (!window.ort) throw new Error('ONNX Runtime Web failed to load.');
+            ort.env.wasm.numThreads = 1;
+            const sessionOptions = { executionProviders: ['cpu'], graphOptimizationLevel: 'disabled' };
+            const modelMap = { encoder: 'models/encoder_quant.onnx', fdm: 'models/fdm_quant.onnx', gcm: 'models/gcm_step_quant.onnx', renderer: 'models/renderer.onnx' };  /* @TODO renderer_quant has issues! */
+            for (const [name, path] of Object.entries(modelMap)) STATE.models[name] = await ort.InferenceSession.create(path, sessionOptions);
+            STATE.loaded = true;
+            setLoadUI(true);
+            document.getElementById('load-status').innerHTML = '<span style="color:#16a34a;">✅ Models ready. Playgrounds active.</span>';
+        } catch (err) {
+            console.error(err);
+            STATE.loaded = false;
+            setLoadUI(false);
+            document.getElementById('load-status').innerHTML = `<div class="error-msg">❌ Failed: ${escapeHtml(err.message)}</div>`;
+        } finally { document.getElementById('loading-overlay').style.display = 'none'; }
+    }
+
+    function stopPlayground(key) { STATE.cancelTokens[key] += 1; }
+    function newPlayToken(key) { STATE.cancelTokens[key] += 1; return STATE.cancelTokens[key]; }
+    function isTokenActive(key, token) { return STATE.cancelTokens[key] === token; }
+
+    function bindPlaygroundControls() {
+        let p1_z = null, p1_m = null, p1_u = null;
+        document.getElementById('p1-restart').addEventListener('click', async () => {
+            if (!STATE.loaded) return showError('Load models first.');
+            const token = newPlayToken('p1');
+            try {
+                p1_z = await runEncoder(window.p1Draw.getTensor(getSession('encoder')));
+                p1_m = createZeros([CONFIG.mem_dim]);
+                p1_u = createZeros([CONFIG.lam_dim]);
+                while (isTokenActive('p1', token)) {
+                    const g = await runGCM(p1_m, p1_z, p1_u);
+                    if (!isTokenActive('p1', token)) return;
+                    p1_u = g.u_next; p1_m = g.m_next;
+                    p1_z = await runFDM(p1_z, p1_u);
+                    if (!isTokenActive('p1', token)) return;
+                    await runRenderer(p1_z, document.getElementById('c1-out'));
+                    await new Promise(resolve => setTimeout(resolve, 40));
+                }
+            } catch (err) { showError(`Playground 1 error: ${err.message}`); }
+        });
+        document.getElementById('p1-replace').addEventListener('click', async () => {
+            if (!STATE.loaded) return showError('Load models first.');
+            if (!p1_z) { showError('Start simulation first.'); return; }
+            p1_z = await runEncoder(window.p1AlienDraw.getTensor(getSession('encoder')));
+        });
+
+        let p2_z = null, p2_m = null, p2_u = null;
+        let p2_override_active = [false, false, false, false];
+        let p2_override_values = [0,0,0,0];
+        let p2_interp = { active: false, step: 0, total: 20, start: [0,0,0,0], target: [0,0,0,0], digit: 1 };
+        document.getElementById('p2-restart').addEventListener('click', async () => {
+            if (!STATE.loaded) return showError('Load models first.');
+            const token = newPlayToken('p2');
+            try {
+                p2_z = await runEncoder(window.p2Draw.getTensor(getSession('encoder')));
+                p2_m = createZeros([CONFIG.mem_dim]);
+                p2_u = createZeros([CONFIG.lam_dim]);
+                p2_override_active = [false, false, false, false];
+                p2_interp.active = false;
+                while (isTokenActive('p2', token)) {
+                    const g = await runGCM(p2_m, p2_z, p2_u);
+                    if (!isTokenActive('p2', token)) return;
+                    p2_m = g.m_next;
+                    let next_u_data = new Float32Array(g.u_next.data);
+                    if (p2_interp.active) {
+                        p2_interp.step++; let progress = Math.min(1, p2_interp.step / p2_interp.total);
+                        const offset = (p2_interp.digit === 1) ? 0 : 2;
+                        p2_override_values[offset] = p2_interp.start[offset] + (p2_interp.target[offset] - p2_interp.start[offset]) * progress;
+                        p2_override_values[offset+1] = p2_interp.start[offset+1] + (p2_interp.target[offset+1] - p2_interp.start[offset+1]) * progress;
+                        if (p2_interp.step >= p2_interp.total) p2_interp.active = false;
+                    }
+                    for (let i=0;i<4;i++) if(p2_override_active[i]) next_u_data[i] = p2_override_values[i];
+                    p2_u = new ort.Tensor('float32', next_u_data, g.u_next.dims);
+                    p2_z = await runFDM(p2_z, p2_u);
+                    if (!isTokenActive('p2', token)) return;
+                    await runRenderer(p2_z, document.getElementById('c2-out'));
+                    await new Promise(resolve => setTimeout(resolve, 50));
+                }
+            } catch(err) { showError(`Playground 2 error: ${err.message}`); }
+        });
+        document.getElementById('c2-out').addEventListener('mousedown', async (e) => {
+            if (!STATE.loaded || !p2_z || !p2_u) return;
+            const rect = e.currentTarget.getBoundingClientRect();
+            const ux = (e.clientX - rect.left) / rect.width * 2 - 1;
+            const uy = (e.clientY - rect.top) / rect.height * 2 - 1;
+            const digit = parseInt(document.getElementById('p2-digit-select').value);
+            const steps = parseInt(document.getElementById('p2-interp-steps').value);
+            const offset = digit === 1 ? 0 : 2;
+            p2_interp = { active: true, step: 0, total: steps, start: [p2_u.data[0], p2_u.data[1], p2_u.data[2], p2_u.data[3]], target: [0,0,0,0], digit: digit };
+            p2_interp.target[offset] = ux; p2_interp.target[offset+1] = uy;
+            p2_override_active[offset] = true; p2_override_active[offset+1] = true;
+        });
+
+        let p3A_z=null,p3A_m=null,p3A_u=null,p3B_z=null,p3B_m=null,p3B_u=null, p3_retargetActive=false;
+        document.getElementById('p3-run').addEventListener('click', async () => {
+            if (!STATE.loaded) return showError('Load models first.');
+            const token = newPlayToken('p3');
+            p3_retargetActive = false;
+            try {
+                p3A_z = await runEncoder(window.p3ADraw.getTensor(getSession('encoder')));
+                p3A_m = createZeros([CONFIG.mem_dim]); p3A_u = createZeros([CONFIG.lam_dim]);
+                p3B_z = await runEncoder(window.p3BDraw.getTensor(getSession('encoder')));
+                p3B_m = createZeros([CONFIG.mem_dim]); p3B_u = createZeros([CONFIG.lam_dim]);
+                let stepCount=0;
+                while (isTokenActive('p3', token) && stepCount<120) {
+                    const gA = await runGCM(p3A_m, p3A_z, p3A_u);
+                    if (!isTokenActive('p3', token)) return;
+                    p3A_u = gA.u_next; p3A_m = gA.m_next; p3A_z = await runFDM(p3A_z, p3A_u);
+                    const gB = await runGCM(p3B_m, p3B_z, p3B_u);
+                    if (!isTokenActive('p3', token)) return;
+                    p3B_m = gB.m_next; p3B_u = p3_retargetActive ? p3A_u : gB.u_next;
+                    p3B_z = await runFDM(p3B_z, p3B_u);
+                    await runRenderer(p3A_z, document.getElementById('c3-out-a'));
+                    await runRenderer(p3B_z, document.getElementById('c3-out-b'));
+                    stepCount++; await new Promise(resolve => setTimeout(resolve, 50));
+                }
+            } catch(err) { showError(`Playground 3 error: ${err.message}`); }
+        });
+        document.getElementById('p3-start-retarget').addEventListener('click', () => { if(STATE.loaded) p3_retargetActive = true; else showError('Models not loaded.'); });
+    }
+
+    function bindStaticUI() {
+        document.getElementById('go-to-playground').addEventListener('click', (e) => { e.preventDefault(); document.getElementById('playground-main').scrollIntoView({ behavior: 'smooth' }); });
+        document.getElementById('load-models-btn').addEventListener('click', loadModelsAndActivate);
+    }
+
+    window.p1Draw = new DrawingCanvas('c1-init');
+    window.p1AlienDraw = new DrawingCanvas('c1-alien');
+    window.p2Draw = new DrawingCanvas('c2-init');
+    window.p3ADraw = new DrawingCanvas('c3-a');
+    window.p3BDraw = new DrawingCanvas('c3-b');
+
+    bindStaticUI();
+    bindPlaygroundControls();
+    setLoadUI(false);
+})();
+</script>
+
+</body>
+</html>

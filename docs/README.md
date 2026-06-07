@@ -1,1 +1,1 @@
-This folder will contain the project documentation; perhaps an interactive website.
+This folder contains the project page along with an interactive playground.

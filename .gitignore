@@ -76,3 +76,13 @@ baselines/genie-gemini/plots/*
 
 plots/long-horizon/*
 !plots/long-horizon/plot.py
+
+
+docs/legacy/*
+docs/models/encoder.onnx
+docs/models/fdm.onnx
+docs/models/gcm_step.onnx
+docs/models/fdm.onnx
+docs/models/idm.onnx
+
+# docs/models/renderer.onnx
