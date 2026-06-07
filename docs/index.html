@@ -4,11 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
     <title>NOVA: Render, Don't Decode – Weight-Space World Models</title>
-    
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&family=Roboto+Condensed:ital,wght@0,300;0,400;0,700;1,400&display=swap" rel="stylesheet">
-    
+
     <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.20.1/dist/ort.min.js"></script>
 
     <style>
@@ -16,7 +16,7 @@
         :root {
             --nova-teal: #0f766e;
             --nova-teal-light: #14b8a6;
-            --nova-lime: #84cc16;
+            --nova-lime: #14b8a6;
             --nova-accent: #b91c1c;
             --bg-white: #ffffff;
             --gray-50: #f9fafb;
@@ -51,23 +51,24 @@
         h2 {
             font-family: 'Inter', sans-serif;
             font-size: 1.8rem;
-            font-weight: 700;
+            font-weight: 800;
             margin-top: 2.5rem;
-            margin-bottom: 1rem;
+            margin-bottom: 0.45rem; /* narrowed from 1rem */
             position: relative;
             display: inline-block;
         }
         h2::after {
             content: '';
             position: absolute;
-            bottom: -8px;
+            bottom: -2px;
             left: 0;
             width: 60px;
             height: 3px;
             background: var(--nova-lime);
-            transition: width 0.2s ease;
+            transition: width 0.25s ease;
         }
-        h2:hover::after { width: 100px; }
+        /* On hover, underline expands to exactly match the title width */
+        h2:hover::after { width: 100%; }
         h3 {
             font-family: 'Inter', sans-serif;
             font-size: 1.4rem;
@@ -95,26 +96,11 @@
             text-decoration: none;
             cursor: pointer;
         }
-        .btn-primary {
-            background: var(--nova-teal);
-            color: white;
-            border: none;
-        }
+        .btn-primary { background: var(--nova-teal); color: white; border: none; }
         .btn-primary:hover { background: var(--nova-accent); transform: translateY(-2px); }
-        .btn-dark {
-            background: #1e293b;
-            border: none;
-            color: white;
-        }
-        .btn-dark:hover {
-            background: #0f172a;
-            transform: translateY(-2px);
-        }
-        .btn-outline {
-            background: white;
-            border: 1.5px solid var(--nova-teal);
-            color: var(--nova-teal);
-        }
+        .btn-dark { background: #1e293b; border: none; color: white; }
+        .btn-dark:hover { background: #0f172a77; transform: translateY(-2px); }
+        .btn-outline { background: white; border: 1.5px solid var(--nova-teal); color: var(--nova-teal); }
         .btn-outline:hover { background: rgba(15,118,110,0.05); border-color: var(--nova-accent); color: var(--nova-accent); }
         .abstract-box, .problem-box {
             background: var(--gray-50);
@@ -123,32 +109,52 @@
             border-left: 5px solid var(--nova-teal);
             margin: 2rem 0;
         }
-        .problem-box {
-            border-left-color: var(--nova-accent);
+        .problem-box { border-left-color: var(--nova-accent); }
+        .problem-box ul { margin-left: 1.5rem; margin-top: 0.5rem; }
+        .problem-box li { margin: 0.5rem 0; }
+        .method-figures-container {
+            max-width: 80%;
+            margin: 2rem auto;   /* centers the whole block */
         }
-        .problem-box ul {
-            margin-left: 1.5rem;
-            margin-top: 0.5rem;
+
+        .fig-full {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            padding: 1rem;
+            margin-bottom: 2rem;
+            text-align: center;
         }
-        .problem-box li {
-            margin: 0.5rem 0;
+
+        .fig-full img {
+            width: 100%;
+            border-radius: 12px;
+            background: #f1f5f9;
+            object-fit: contain;
         }
+
+        /* The existing .fig-row and .fig-card will work as before */
         .fig-row {
             display: flex;
             flex-wrap: wrap;
             gap: 2rem;
             justify-content: center;
-            margin: 2rem 0;
         }
+
         .fig-card {
+            flex: 1;
+            min-width: 260px;
             background: white;
             border-radius: 20px;
             box-shadow: 0 4px 12px rgba(0,0,0,0.05);
             padding: 1rem;
-            flex: 1;
-            min-width: 260px;
             text-align: center;
         }
+        /* ── Figure image replacement helper ──────────────────────────────
+           To swap a placeholder for a real image, just change the src:
+               <img id="fig-architecture" src="./figures/nova_arch.webp" …>
+           All figure <img> tags carry unique IDs listed in comments above them.
+        ─────────────────────────────────────────────────────────────────── */
         .fig-card img {
             max-width: 100%;
             border-radius: 12px;
@@ -161,6 +167,7 @@
             grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
             gap: 1.8rem;
             margin: 2rem 0;
+            margin-top: 1rem;
         }
         .cap-card {
             background: white;
@@ -170,10 +177,7 @@
             box-shadow: 0 4px 8px rgba(0,0,0,0.02);
         }
         .cap-card h4 { font-size: 1.35rem; font-weight: 700; margin-bottom: 0.75rem; color: var(--nova-teal); }
-        .superres-img {
-            margin: 1.5rem 0;
-            text-align: center;
-        }
+        .superres-img { margin: 1.5rem 0; text-align: center; }
         .superres-img img {
             max-width: 100%;
             border-radius: 24px;
@@ -188,16 +192,58 @@
             text-align: center;
             border: 1px dashed var(--nova-teal);
         }
+
+        /* ── PLAYGROUND STYLES ─────────────────────────────────────────── */
         .playground-section {
             background: var(--gray-50);
             border-radius: 32px;
             padding: 2rem;
             margin: 2.5rem 0;
         }
-        .disabled-playground {
-            opacity: 0.5;
+        /* Wrapper used for the click-to-load overlay positioning */
+        .pg-wrap-relative {
+            position: relative;
+        }
+        /* The semi-transparent overlay shown when models aren't loaded */
+        #pg-load-hint {
+            position: absolute;
+            inset: 0;
+            z-index: 30;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 0.75rem;
+            border-radius: 24px;
+            background: rgba(249,250,251,0.55);
+            backdrop-filter: blur(2px);
+        }
+        #pg-load-hint .hint-pill {
+            background: var(--nova-teal);
+            color: white;
+            font-family: 'Inter', sans-serif;
+            font-weight: 700;
+            font-size: 1.05rem;
+            padding: 0.7rem 2.2rem;
+            border-radius: 50px;
+            box-shadow: 0 4px 16px rgba(15,118,110,0.35);
             pointer-events: none;
-            filter: grayscale(0.1);
+            animation: pulse-pill 2s ease-in-out infinite;
+        }
+        @keyframes pulse-pill {
+            0%,100% { transform: scale(1); box-shadow: 0 4px 16px rgba(15,118,110,0.35); }
+            50%      { transform: scale(1.04); box-shadow: 0 6px 24px rgba(15,118,110,0.5); }
+        }
+        #pg-load-hint .hint-sub {
+            font-size: 0.85rem;
+            color: #475569;
+            pointer-events: none;
+        }
+        .disabled-playground {
+            opacity: 0.45;
+            pointer-events: none;
+            filter: grayscale(0.15);
         }
         .playground-container {
             background: white;
@@ -212,6 +258,18 @@
             justify-content: center;
             gap: 1.8rem;
             margin: 1rem 0;
+        }
+        /* Horizontal layout for PG3 */
+        .canvas-row-horizontal {
+            display: flex;
+            flex-wrap: nowrap;
+            justify-content: center;
+            gap: 1.2rem;
+            margin: 1rem 0;
+            overflow-x: auto;
+        }
+        @media (max-width: 900px) {
+            .canvas-row-horizontal { flex-wrap: wrap; }
         }
         .canvas-wrapper {
             text-align: center;
@@ -251,10 +309,8 @@
         }
         #loading-overlay {
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
             background: rgba(255,255,255,0.96);
             backdrop-filter: blur(4px);
             display: none;
@@ -288,7 +344,7 @@
             overflow-x: auto;
             font-family: monospace;
             font-size: 0.9rem;
-            margin-top: 0.5rem;
+            margin-top: 1.0rem;
             margin-bottom: 2.5rem;
             display: block;
             line-height: 1.4;
@@ -301,17 +357,75 @@
             font-size: 0.85rem;
             color: #5b6e8c;
         }
-        .disclaimer-box {
+        .footer-powered {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #cbd5e1;
+            letter-spacing: 0.01em;
+            margin-bottom: 0.4rem;
+        }
+        /* Playground-level disclaimer box */
+        .pg-disclaimer {
             background: #fffbeb;
-            border-left: 5px solid #eab308;
+            border-left: 5px solid #d97706;
             padding: 1rem 1.5rem;
             border-radius: 18px;
-            margin: 1.5rem 0;
+            margin: 1.2rem 0 1.5rem;
             font-size: 0.9rem;
+            line-height: 1.6;
+        }
+        .pg-disclaimer strong { color: #92400e; }
+        /* Per-playground "what to expect" box */
+        .expect-box {
+            background: #f0fdf4;
+            border-left: 4px solid #16a34a;
+            padding: 0.7rem 1rem;
+            border-radius: 10px;
+            margin: 0.8rem 0 0.5rem;
+            font-size: 0.88rem;
+            color: #166534;
+            line-height: 1.55;
+        }
+        .expect-box strong { color: #14532d; }
+        /* Contextual note per playground */
+        .pg-context-note {
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 0.8rem 1.1rem;
+            margin: 0.5rem 0 0.9rem;
+            font-size: 0.88rem;
+            color: #334155;
+            border: 1px solid #e2e8f0;
+            line-height: 1.6;
+        }
+        /* Video B "will be corrupted" badge */
+        .corrupt-badge {
+            display: inline-block;
+            background: #fef3c7;
+            color: #92400e;
+            border: 1.5px solid #fbbf24;
+            border-radius: 50px;
+            padding: 2px 10px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            margin-top: 2px;
+        }
+        /* GCM context label */
+        .gcm-tag {
+            display: inline-block;
+            background: #ede9fe;
+            color: #5b21b6;
+            border-radius: 6px;
+            padding: 1px 8px;
+            font-size: 0.78rem;
+            font-weight: 700;
+            vertical-align: middle;
+            margin-left: 4px;
         }
         .load-bar {
             text-align: center;
-            margin-bottom: 1.5rem;
+            margin-bottom: 1.2rem;
         }
         .tech-stack {
             text-align: center;
@@ -319,10 +433,6 @@
             font-size: 0.8rem;
             color: #4b5563;
             letter-spacing: 0.3px;
-        }
-        @media (max-width: 700px) {
-            .container { padding: 1rem; }
-            h1 { font-size: 2rem; }
         }
         code {
             background: #eef2ff;
@@ -338,20 +448,117 @@
             font-size: 0.85rem;
             margin-left: 6px;
         }
-        .clear-btn {
-            margin-top: 0.25rem;
+        .method-figures-container {
+            max-width: 80%;
+            margin: 2rem auto;
         }
+
+        .fig-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 2rem;
+            justify-content: center;
+        }
+
+        /* GCM figure: 45% of the container width */
+        .fig-card-gcm {
+            flex: 0 0 44%;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            padding: 1rem;
+            text-align: center;
+        }
+
+        /* Algorithm figure: 55% of the container width */
+        .fig-card-algo {
+            flex: 0 0 52%;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            padding: 1rem;
+            text-align: center;
+        }
+
+        /* On mobile, stack them with 100% width */
+        @media (max-width: 700px) {
+            .fig-card-gcm, .fig-card-algo {
+                flex: 0 0 100%;
+            }
+        }
+
+        .fig-full {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            padding: 1rem;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .fig-full img, .fig-card-gcm img, .fig-card-algo img {
+            width: 100%;
+            border-radius: 12px;
+            background: #f1f5f9;
+            object-fit: contain;
+        }
+        .cap-card img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 12px;
+            display: block;
+            margin: 1rem 0 0 0;
+        }
+    .corresponding {
+        text-align: center;
+        font-size: 0.85rem;
+        color: #4b5563;
+        margin-top: -1.15rem;
+        margin-bottom: -0.5rem;
+    }
+    .load-pill {
+        background: var(--nova-teal);
+        color: white;
+        font-family: 'Inter', sans-serif;
+        font-weight: 700;
+        font-size: 1.05rem;
+        padding: 0.7rem 2.2rem;
+        border-radius: 50px;
+        border: none;
+        cursor: pointer;
+        transition: transform 0.2s, box-shadow 0.2s;
+        box-shadow: 0 4px 16px rgba(15,118,110,0.35);
+        animation: pulse-pill 2s ease-in-out infinite;
+    }
+
+    .load-pill:hover {
+        transform: scale(1.02);
+        background: #0d5c55;   /* slightly darker teal on hover */
+        box-shadow: 0 6px 20px rgba(15,118,110,0.5);
+    }
+
+    .load-pill:disabled {
+        opacity: 0.6;
+        animation: none;
+        transform: none;
+        cursor: not-allowed;
+    }
+
+    @keyframes pulse-pill {
+        0%, 100% { transform: scale(1); box-shadow: 0 4px 16px rgba(15,118,110,0.35); }
+        50%      { transform: scale(1.04); box-shadow: 0 6px 24px rgba(15,118,110,0.5); }
+    }
     </style>
 </head>
 <body>
 <div id="loading-overlay">
     <div class="spinner"></div>
-    <h3>Loading NOVA weight-space world models</h3>
-    <p>Downloading quantized ONNX models (~35MB) – this runs locally in your browser.</p>
+    <h3>Loading NOVA world models weights…</h3>
+    <p style="margin-top:0.5rem; color:#475569; font-size:0.9rem;">Downloading quantized ONNX models (~32 MB) — runs fully locally in your browser.</p>
 </div>
 
 <div class="container">
-    <h1>Render, Don’t Decode:<br>Weight-Space World Models with Latent Structural Disentanglement</h1>
+    <h1>Render, Don't Decode:<br>Weight-Space World Models with Latent Structural Disentanglement</h1>
     <div class="authors">
         Roussel Desmond Nzoyem<sup>1</sup> &nbsp;&nbsp; Mauro Comi<sup>2</sup>
     </div>
@@ -359,171 +566,298 @@
         <sup>1</sup> Centre for AI Fundamentals, University of Manchester &nbsp;|&nbsp;
         <sup>2</sup> Interactive AI CDT, University of Bristol
     </div>
+    <div class="corresponding">
+        Correspondence: roussel.nzoyem@manchester.ac.uk
+    </div>
 
     <div class="links-bar">
         <a href="https://arxiv.org/pdf/2605.06298" class="btn btn-dark" target="_blank">📄 PDF</a>
-        <a href="#" class="btn btn-dark">🐙 Code</a>
-        <a href="#playground-main" class="btn btn-dark" id="go-to-playground">🎮 PlayGround</a>
+        <a href="https://github.com/ddrous/nova" class="btn btn-dark" target="_blank">💻 Code</a>
+        <a href="#playground-main" class="btn btn-dark" id="go-to-playground">🎮 Playground</a>
     </div>
 
     <div class="abstract-box">
         <h3 style="margin-top:0;">Abstract</h3>
-        <p>Training world models on vast quantities of unlabelled videos is a critical step toward fully autonomous intelligence. 
-        We introduce <strong>NOVA</strong>, a world modelling framework that represents the system state as the weights and biases of an auxiliary 
-        coordinate-based implicit neural representation (INR). This structured representation is analytically rendered, eliminating the decoder bottleneck 
-        while conferring compactness, portability, and zero-shot super-resolution. NOVA naturally disentangles structural scene components — background, 
-        foreground, and inter-frame motion — enabling users to edit content or dynamics without compromising the other. We validate our framework on 
-        challenging datasets, achieving strong controllable forecasting on a single consumer GPU.</p>
+        <p>Training world models on vast quantities of unlabelled videos is a critical step toward fully autonomous intelligence.
+        We introduce NOVA, a world modelling framework that represents the system state as the weights and biases of an auxiliary
+        coordinate-based implicit neural representation (INR). This structured representation is analytically rendered, eliminating the decoder bottleneck
+        while conferring compactness, portability, and zero-shot super-resolution. NOVA naturally disentangles structural scene components — background,
+        foreground, and inter-frame motion — enabling users to edit content or dynamics without compromising the other. We validate our framework on
+        a diverse set of datasets, achieving strong controllable forecasting on a single consumer GPU.</p>
     </div>
 
-    <!-- NEW: Problem section based on introduction -->
     <div class="problem-box">
-        <h3 style="margin-top:0;">Why rethinking world models?</h3>
+        <h3 style="margin-top:0;">Why should we rethink world models?</h3>
         <ul>
-            <li><strong>Decoder bottleneck</strong> – Scalable video tokenisers allocate up to 87% of parameters to the decoder, limiting efficiency and interpretability.</li>
-            <li><strong>Fixed resolution & rigidity</strong> – Changing output resolution requires expensive retraining or heuristic upsampling; no continuous rendering.</li>
+            <li><strong>Decoder bottleneck</strong> – Many video auto-encoders allocate disproportionally many trainable parameters to the decoder, limiting efficiency and interpretability.</li>
+            <li><strong>Fixed resolution &amp; rigidity</strong> – Changing output resolution requires expensive retraining or heuristic upsampling; no continuous rendering.</li>
             <li><strong>Non-portable latents</strong> – Abstract vectors are tied to a specific decoder, hindering reuse across tasks and models.</li>
             <li><strong>Poor disentanglement</strong> – Background, content, and motion remain entangled without costly auxiliary losses or adversarial training.</li>
             <li><strong>Weight-space instability</strong> – Prior weight-space world models suffer from numerical explosion (gradient / value clipping).</li>
         </ul>
-        <p style="margin-top: 0.75rem;"><strong>NOVA</strong> overcomes these issues via an analytical INR renderer, additive latent decomposition, and stable dynamics.</p>
+        <p style="margin-top: 0.75rem;">NOVA overcomes these issues via an analytical INR renderer, additive latent decomposition, and stable dynamics.</p>
     </div>
 
-    <!-- METHOD section (formerly Methodological Core) -->
+    <!-- METHOD -->
     <h2>Method</h2>
-    <p>NOVA evolves the hidden state directly in the weight space of an INR. The additive dynamics <code>A(z<sub>t</sub>) + B(u<sub>t</sub>)</code> induces disentanglement. The framework eliminates the traditional decoder: the continuous INR <strong>renders</strong> pixels analytically from latent weights, enabling parameter efficiency (≈40M total), portability, and <strong>zero-shot resolution flexibility</strong>. This weight-space world model compresses video dynamics into structured latent trajectories without a heavy spatial decoder — each frame is rendered by querying the INR at arbitrary coordinates.</p>
-    <div class="fig-row">
-        <div class="fig-card">
-            <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 200'%3E%3Crect width='400' height='200' fill='%23f1f5f9'/%3E%3Ctext x='50%25' y='50%25' font-size='14' text-anchor='middle' fill='%23334155'%3ENOVA architecture: encoder → weight offsets → FDM (A+B) → INR renderer.%3C/text%3E%3C/svg%3E" alt="NOVA Architecture Diagram">
-            <p><strong>Figure 2:</strong> Encoder → weight offsets → dynamics (A+B) → INR analytical renderer. No trained spatial decoder.</p>
+    <!-- NEW LINE BEFORE NEXT PARAGRAPH -->
+    <br/>
+    <p style="margin-top: 1rem;">NOVA evolves the hidden state directly in the weight space of an INR, with its additive dynamics inducing content/motion disentanglement. The framework eliminates the traditional decoder, since the continuous INR renders pixels analytically from latent weights, enabling parameter efficiency, portability, and resolution flexibility. This weight-space world model can be distilled into a video generation model by training a control module to imitate previously learned actions.</p>
+
+    <!-- Full‑width architecture figure -->
+    <div class="method-figures-container">
+        <div class="fig-full">
+            <img src="./figs/nova.png" alt="NOVA architecture">
+            <p><strong>NOVA architecture:</strong> The Encoder maps frames to weight-space offsets. During training, the IDM infers latent action from consecutive encoded states, then the FDM predicts the next weight offset. Unlike conventional decoders, the Renderer is not trained; it is an analytical function that maps a coordinate grid to pixel values via an implicit neural representation (INR).</p>
         </div>
-        <div class="fig-card">
-            <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 200'%3E%3Crect width='400' height='200' fill='%23f1f5f9'/%3E%3Ctext x='50%25' y='50%25' font-size='14' text-anchor='middle' fill='%23334155'%3EGCM action matching%3C/text%3E%3C/svg%3E" alt="GCM training">
-            <p><strong>Figure 3:</strong> Generative Control Model distills IDM into an autoregressive generator.</p>
-        </div>
-        <div class="fig-card">
-            <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 200'%3E%3Crect width='400' height='200' fill='%23f1f5f9'/%3E%3Ctext x='50%25' y='50%25' font-size='14' text-anchor='middle' fill='%23334155'%3EZero-shot content / motion editing%3C/text%3E%3C/svg%3E" alt="Algorithm 2">
-            <p><strong>Algorithm 2:</strong> Zero-shot intervention on <code>z_t</code> or <code>u_t</code> during inference – no retraining.</p>
+
+        <div class="fig-row">
+            <div class="fig-card-gcm">
+                <img src="./figs/gcm.png" alt="GCM training">
+                <p><strong>GCM training:</strong> The Generative Control Model (GCM) distills IDM into an autoregressive generator, enabling video prediction without access to future frames.</p>
+            </div>
+            <div class="fig-card-algo">
+                <img src="./figs/algo.png" alt="Content/Motion editing">
+                <p><strong>Content/motion retargeting:</strong> Algorithm for zero-shot intervention on either state, action, or both during inference.</p>
+            </div>
         </div>
     </div>
 
-    <!-- Core Capabilities: two blocks only -->
-    <h2>Core Capabilities</h2>
+    <!-- CAPABILITIES -->
+    <h2>Main Capabilities</h2>
     <div class="capabilities-grid">
-        <!-- Block 2: Content / Action Editing with improved baseline comparison placeholder -->
         <div class="cap-card">
-            <h4>✂️ Content / Action Editing (Zero-shot Disentanglement)</h4>
-            <p>Additive decomposition <code>z<sub>t</sub> (content) + u<sub>t</sub> (motion)</code> lets users replace visual identity or steer dynamics independently. Unlike black-box latent models, NOVA provides <strong>structural intervention</strong> without auxiliary losses. Below: quantitative editing advantage over SOTA baselines (higher edit precision, lower content leak).</p>
-            <div class="editing-placeholder">
-                <svg width="100%" height="140" viewBox="0 0 400 120" xmlns="http://www.w3.org/2000/svg" style="background: #f1f5f9; border-radius: 12px;">
-                    <rect x="10" y="20" width="80" height="30" fill="#0f766e" rx="5" />
-                    <text x="50" y="40" fill="white" font-size="8" text-anchor="middle">NOVA</text>
-                    <rect x="100" y="35" width="80" height="25" fill="#94a3b8" rx="5" />
-                    <text x="140" y="52" fill="white" font-size="8" text-anchor="middle">Baseline A</text>
-                    <rect x="190" y="45" width="80" height="25" fill="#cbd5e1" rx="5" />
-                    <text x="230" y="62" fill="black" font-size="8" text-anchor="middle">Baseline B</text>
-                    <line x1="30" y1="70" x2="30" y2="95" stroke="#b91c1c" stroke-width="3" stroke-dasharray="4" />
-                    <line x1="140" y1="70" x2="140" y2="90" stroke="#b91c1c" stroke-width="2" stroke-dasharray="3" />
-                    <line x1="230" y1="70" x2="230" y2="85" stroke="#b91c1c" stroke-width="2" stroke-dasharray="3" />
-                    <text x="30" y="108" fill="#b91c1c" font-size="7" text-anchor="middle">+42% edit precision</text>
-                    <text x="30" y="118" fill="#b91c1c" font-size="7" text-anchor="middle">-38% content leak</text>
-                </svg>
-                <p style="font-size:0.75rem; margin-top:8px;"><strong>Figure:</strong> NOVA vs. latent dynamics baselines: action retargeting precision (↑42%) and content preservation (↓38% leakage).</p>
-            </div>
+            <h4>✂️ Zero-Shot Video Editing</h4>
+            <p>Additive decomposition induces a dissentaglement of background, identity, and dynamics. Unlike existing latent action models, NOVA offers users with the possibility to edit content without affecting motion, and vice-versa.</p>
+            <!-- <div class="editing-placeholder"> -->
+                <img src="./figs/fig1.png" alt="MNIST Content/Motion editing">
+                <!-- <p style="font-size:0.75rem;margin-top:8px;"><strong>Figure:</strong> NOVA vs. latent dynamics baselines: action retargeting precision (↑42%) and content preservation (↓38% leakage).</p> -->
+            <!-- </div> -->
         </div>
-
-
-        <!-- Block 1: Super-Resolution & Anti-Aliasing -->
         <div class="cap-card">
-            <h4>🔍 Zero-Shot Super-Resolution & Anti-Aliasing</h4>
-            <p>Because the INR is a continuous function, NOVA can be rendered at any resolution <strong>without retraining</strong>. We apply a Nyquist frequency mask to Fourier features during inference, suppressing aliasing artefacts. Below: WeatherBench frame upsampled ×32 — NOVA preserves macro‑structure and avoids spurious high-frequency noise.</p>
+            <h4>🔍 Zero-Shot Super-Resolution</h4>
+            <p>Because the INR is a continuous function, NOVA can be rendered at any resolution without retraining. We apply a Nyquist-Shannon frequency mask to Fourier features during inference, suppressing aliasing artefacts. Below, we see a WeatherBench frame upsampled ×32; NOVA preserves macro‑structure and avoids spurious high-frequency noise.</p>
             <div class="superres-img">
-                <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 200'%3E%3Crect width='800' height='200' fill='%23e2e8f0'/%3E%3Ctext x='50%25' y='50%25' font-size='14' text-anchor='middle' fill='%23334155'%3ENOVA ×32 super-resolution vs. bilinear / nearest neighbor: sharper fronts, no aliasing.%3C/text%3E%3C/svg%3E" alt="Super-resolution comparison NOVA">
-                <p style="font-size:0.8rem; margin-top:6px;">Comparison: nearest neighbour, bilinear, and NOVA (ours) at ×32 super-resolution. NOVA retains sharp edges without ringing.</p>
+                <!-- REPLACE: id="fig-superres" → src="./figures/nova_superres.webp" -->
+                <img id="fig-superres" src="./figs/weather.png" alt="Super-resolution comparison">
+                <!-- <p style="font-size:0.8rem;margin-top:6px;">Comparison: nearest neighbour, bilinear, and NOVA (ours) at ×32 super-resolution. NOVA retains sharp edges without ringing.</p> -->
             </div>
         </div>
-
     </div>
 
-    <!-- INTERACTIVE PLAYGROUND SECTION (last big section) -->
+    <!-- ── INTERACTIVE PLAYGROUND ─────────────────────────────────── -->
     <div id="playground-main" style="scroll-margin-top: 80px;"></div>
+    <h2 style="margin-top:0;">Interactive Playgrounds</h2>
+    <p style="margin-bottom:0.3rem; margin-top:1rem;">
+        Explore NOVA's three video editing capabilities live in your browser. These playgrounds run the
+        Generative Control Model (GCM) inference pipeline — the same autoregressive
+        video generator described in Algorithm 2 of the paper — powered by quantised JAX models
+        via ONNX Runtime Web.
+
+        <!-- ── DISCLAIMER ─────────────────────────────────────────── -->
+        These demos use the same trained weights from the paper's Moving MNIST experiment, but operate under three constraints that affect quality:
+        <ol style="margin-left:1.4rem;margin-top:0.4rem;line-height:1.8;">
+            <li><strong>Custom initial conditions</strong> — you draw your own digits rather than using the real Moving MNIST dataset, so the encoder may generalise imperfectly to hand-drawn strokes.</li>
+            <li><strong>Extended forecast horizon</strong> — the models are trained on 20-step sequences; here the GCM runs for up to 1000 steps, well beyond the training distribution, so longer runs may drift.</li>
+            <li><strong>Quantised models</strong> — the ONNX graphs are heavily quantised for fast browser delivery (JAX → JAX2ONNX → INT8). Consider downloading
+        <a href="https://github.com/ddrous/nova" target="_blank" style="color:var(--nova-teal);font-weight:700;">full-precision weights</a>. </li>
+        </ol>
+    </p>
+
     <div class="playground-section">
-        <h2 style="margin-top:0;">Interactive Playground</h2>
-        <p><strong>Live inference via ONNX Runtime Web (WebAssembly).</strong> Models are loaded only when you press <em>“Load Models & Unlock Playground”</em> — this downloads quantized INT8 ONNX graphs from the <code>/models/</code> folder.</p>
-        
-        <!-- Centered load bar -->
+
+        <!-- ── LOAD BAR ────────────────────────────────────────────── -->
         <div class="load-bar" id="load-controls">
-            <button id="load-models-btn" class="btn btn-primary" style="background: #b91c1c; border-color:#b91c1c;">🚀 Load Models & Activate Playgrounds</button>
-            <div id="load-status" style="margin-top: 10px; font-size:0.9rem; text-align: center;"></div>
+            <button id="load-models-btn" class="load-pill">Activate Playgrounds</button>
+            <div id="load-status" style="margin-top:10px;font-size:0.9rem;text-align:center;"></div>
         </div>
 
-        <!-- Quantisation & Pipeline Disclaimer -->
-        <!-- <div class="disclaimer-box">
-            ⚠️ <strong>Quantised model disclaimer:</strong> The provided ONNX graphs are highly quantised (INT8 / FP16) for efficient browser delivery. The pipeline: <code>JAX + Equinox + Optax → JAX2ONNX → INT8 Quantisation → ONNX Runtime Web</code>. While interactive demos capture core behaviour, <strong>quantisation may reduce numerical precision</strong> compared to the full paper weights. For research reproduction, please download the official weights from the project repository and run locally. The playground serves as a proof-of-concept.
-        </div> -->
-
-        <div id="playgrounds-wrapper" class="disabled-playground">
-            <!-- Playground 1: content retargeting (clear buttons underneath each canvas) -->
-            <div class="playground-container">
-                <h4>1. Content Retargeting</h4>
-                <p>Draw an initial digit → Restart. Then draw an “alien” digit and click <strong>Replace Content</strong>. The model swaps the INR state (z<sub>t</sub>) while preserving latent motion momentum.</p>
-                <div class="canvas-row">
-                    <div class="canvas-wrapper"><span>Init Digit</span><canvas id="c1-init" width="128" height="128"></canvas><button class="btn-outline btn clear-btn" style="padding:4px 12px;" onclick="window.p1Draw?.clear()">Clear</button></div>
-                    <div class="canvas-wrapper"><span>Output (inference)</span><canvas id="c1-out" class="output-canvas" width="256" height="256"></canvas></div>
-                    <div class="canvas-wrapper"><span>Alien Digit</span><canvas id="c1-alien" width="128" height="128"></canvas><button class="btn-outline btn clear-btn" style="padding:4px 12px;" onclick="window.p1AlienDraw?.clear()">Clear</button></div>
-                </div>
-                <div class="controls-row"><button id="p1-restart" class="btn btn-primary">▶ Restart Simulation</button><button id="p1-replace" class="btn btn-primary" style="background:#b91c1c;">🔄 Replace Content</button></div>
+        <!-- ── PLAYGROUNDS WRAPPER (with click-to-load overlay) ────── -->
+        <div class="pg-wrap-relative">
+            <!-- Click-to-load overlay (hidden once models are loaded) -->
+            <div id="pg-load-hint">
+                <div class="hint-pill">👆 Click anywhere to load models</div>
+                <div class="hint-sub">Downloads ~32 MB of quantised ONNX weights, then runs locally.</div>
             </div>
 
-            <!-- Playground 2: action interpolation with click steering and steps display -->
-            <div class="playground-container">
-                <h4>2. Action Interpolation (Click to steer)</h4>
-                <p>Draw a digit → <strong>Click anywhere on the Output canvas</strong> to override the digit's target location. Your action will seamlessly blend with the active simulation over the specified number of steps.</p>
-                <div class="canvas-row">
-                    <div class="canvas-wrapper">
-                        <span>Draw Subject</span>
-                        <canvas id="c2-init" width="128" height="128"></canvas>
-                        <button class="btn-outline btn clear-btn" style="padding:4px 12px;" onclick="window.p2Draw?.clear()">Clear</button>
+            <div id="playgrounds-wrapper" class="disabled-playground">
+
+                <!-- ──────────────────────────────────────────────────
+                     PLAYGROUND 1 — Content Retargeting
+                ────────────────────────────────────────────────────── -->
+                <div class="playground-container">
+                    <h3>Content Retargeting</h3>
+
+                    <!-- <div class="pg-context-note">
+                        The GCM drives the simulation autoregressively: it predicts the next latent action
+                        <code>u<sub>t</sub></code> from the current weight-space state <code>z<sub>t</sub></code>,
+                        then the FDM advances the state. No future frames are ever seen at inference time.
+                    </div> -->
+
+                    <p>Draw two initial digits and press <strong>▶ Restart Simulation</strong> to begin. Then draw any
+                    two "alien" digits in the right canvas and click <strong>🔄 Replace Content</strong>. The model should swap
+                    the INR latent state while keeping the motion intact.</p>
+
+                    <!-- <div class="expect-box">
+                        📄 <strong>What to expect:</strong>
+                        After replacing the content, the new digit should inherit the original trajectory —
+                        e.g. a <em>5</em> takes over the path of a <em>1</em> — without altering direction or speed.
+                        This demonstrates that <code>z<sub>t</sub></code> encodes <em>identity</em> and
+                        <code>u<sub>t</sub></code> encodes <em>motion</em>, purely by construction.
+                    </div> -->
+
+                    <div class="canvas-row">
+                        <div class="canvas-wrapper">
+                            <span>Initial Digits</span>
+                            <canvas id="c1-init" width="128" height="128"></canvas>
+                            <button class="btn-outline btn clear-btn" style="padding:4px 12px;" onclick="window.p1Draw?.clear()">Clear</button>
+                        </div>
+                        <div class="canvas-wrapper">
+                            <span>Output Video</span>
+                            <canvas id="c1-out" class="output-canvas" width="256" height="256"></canvas>
+                        </div>
+                        <div class="canvas-wrapper">
+                            <span>Alien Digits</span>
+                            <canvas id="c1-alien" width="128" height="128"></canvas>
+                            <button class="btn-outline btn clear-btn" style="padding:4px 12px;" onclick="window.p1AlienDraw?.clear()">Clear</button>
+                        </div>
                     </div>
-                    <div class="canvas-wrapper">
-                        <span>Output (click to steer)</span>
-                        <canvas id="c2-out" class="output-canvas" width="256" height="256"></canvas>
+                    <div class="controls-row">
+                        <button id="p1-restart" class="btn btn-primary">▶ Restart Simulation</button>
+                        <button id="p1-replace" class="btn btn-primary" style="background:#b91c1c;">🔄 Replace Content</button>
                     </div>
                 </div>
-                <div class="controls-row">
-                    <button id="p2-restart" class="btn btn-primary">▶ Restart Simulation</button>
-                    <label class="slider-label">
-                        Target Digit: 
-                        <select id="p2-digit-select" style="padding:2px 8px; border-radius:4px; border:1px solid #ccc; font-family: inherit;">
-                            <option value="1">First Digit</option>
-                            <option value="2">Second Digit</option>
-                        </select>
-                    </label>
-                    <label class="slider-label">
-                        Interpolation Steps: 
-                        <input type="range" id="p2-interp-steps" min="1" max="60" value="20">
-                        <span id="interp-value-display" class="value-badge">20</span>
-                    </label>
-                </div>
-            </div>
 
-            <!-- Playground 3: motion retargeting with immediate transfer -->
-            <div class="playground-container">
-                <h4>3. Action Retargeting (motion transfer)</h4>
-                <p>Draw two sequences A (source motion) and B (target content). Press <strong>Run Transfer Simulation</strong> to start generation. While running, click <strong>Start Retargeting</strong> to instantly inject motion from A into B — immediate transfer.</p>
-                <div class="canvas-row">
-                    <div class="canvas-wrapper"><span>Video A (motion source)</span><canvas id="c3-a" width="128" height="128"></canvas><canvas id="c3-out-a" class="output-canvas" width="128" height="128"></canvas><button class="btn-outline btn clear-btn" onclick="window.p3ADraw?.clear()">Clear A</button></div>
-                    <div class="canvas-wrapper"><span>Video B (target content)</span><canvas id="c3-b" width="128" height="128"></canvas><canvas id="c3-out-b" class="output-canvas" width="128" height="128" style="border-color:#b91c1c;"></canvas><button class="btn-outline btn clear-btn" onclick="window.p3BDraw?.clear()">Clear B</button></div>
-                </div>
-                <div class="controls-row">
-                    <button id="p3-run" class="btn btn-primary">▶ Run Transfer Simulation</button>
-                    <button id="p3-start-retarget" class="btn btn-primary" style="background:#b91c1c;">✨ Start Retargeting</button>
-                </div>
-            </div>
-        </div>
-    </div>
+                <!-- ──────────────────────────────────────────────────
+                     PLAYGROUND 2 — Action Interpolation / Click Steering
+                ────────────────────────────────────────────────────── -->
+                <div class="playground-container">
+                    <h3>Action Interpolation — Click to Steer</h3>
 
-    <!-- Citation & Acknowledgements (unchanged) -->
+
+                    <p>Draw a scene with two digits, then press <strong>▶ Restart Simulation</strong>. While the simulation
+                    is running, <strong>click anywhere on the output canvas</strong> to redirect one of the digits
+                    toward that location.</p>
+
+                    <div class="pg-context-note">
+                        The GCM generates a 4-dimensional latent action vector each step, with dimensions 0–1 loosely corresponding
+                        to one digit, and dimensions 2–3 to the other digit's location. Clicking the output canvas overrides those values,
+                        blending toward your target over the selected number of interpolation steps.
+
+                        However, the latent action dimensions here are not
+                        regularised and may thus carry irrelevant information. Don't expect exact positional control, but if you click near the canvas
+                        centre, the digit should converge toward the middle.
+                        Finding the relationship between your click and the resulting trajectory should be fun, and we would be happy to hear what you find 🙂!
+                    </div>
+
+
+                    <!-- <div class="expect-box">
+                        📄 <strong>What to expect (from the paper, Fig. 5 bottom):</strong>
+                        Digits should decelerate and shift toward the clicked region. However, unlike the paper's
+                        <em>ideally disentangled</em> experiments, the latent action dimensions here are not perfectly
+                        regularised — they encode location as absolute "go-to" coordinates rather than deltas, and may
+                        also carry brightness noise. Don't expect exact positional control. If you click near the canvas
+                        centre, the digit should converge toward the middle, which is the cleanest signal.
+                        Finding the relationship between your click and the resulting trajectory is an open research
+                        question — it touches on what regularisation strategies work best for latent action models,
+                        a very active area right now!
+                    </div> -->
+
+                    <div class="canvas-row">
+                        <div class="canvas-wrapper">
+                            <span>Initial Digits</span>
+                            <canvas id="c2-init" width="128" height="128"></canvas>
+                            <button class="btn-outline btn clear-btn" style="padding:4px 12px;" onclick="window.p2Draw?.clear()">Clear</button>
+                        </div>
+                        <div class="canvas-wrapper">
+                            <span>Output Video (click to steer)</span>
+                            <canvas id="c2-out" class="output-canvas" width="256" height="256"></canvas>
+                        </div>
+                    </div>
+                    <div class="controls-row">
+                        <button id="p2-restart" class="btn btn-primary">▶ Restart Simulation</button>
+                        <label class="slider-label">
+                            Target Digit:
+                            <select id="p2-digit-select" style="padding:2px 8px;border-radius:4px;border:1px solid #ccc;font-family:inherit;">
+                                <option value="1">First Digit</option>
+                                <option value="2">Second Digit</option>
+                            </select>
+                        </label>
+                        <label class="slider-label">
+                            Interpolation Steps:
+                            <input type="range" id="p2-interp-steps" min="1" max="60" value="20">
+                            <span id="interp-value-display" class="value-badge">20</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- ──────────────────────────────────────────────────
+                     PLAYGROUND 3 — Motion Retargeting (Action Transfer)
+                ────────────────────────────────────────────────────── -->
+                <div class="playground-container">
+                    <h3>Motion Retargeting</h3>
+
+                    <p>Draw two initial digits in each canvas. Press <strong>▶ Run Transfer Simulation</strong> to start
+                    both simulations. At any moment, click <strong>✨ Start Retargeting</strong> to inject Video A's motion
+                    into Video B.</p>
+
+                    <div class="pg-context-note">
+                        Two independent GCM simulations run in parallel. Video A generates its own actions
+                        autonomously. Once retargeting is triggered, Video B's
+                        own GCM actions are <em>replaced</em> by Video A's actions, forcing B's content to follow A's
+                        trajectory without altering the contents of the video.
+
+                        After retargeting, Video B's digit(s) should quickly adopt the trajectory of Video A, while their visual identity is preserved.
+                        While here we focus on MNIST, note that the paper demonstrates this on PhyWorld physics sequences as well.
+                    </div>
+
+
+                    <!-- <div class="expect-box">
+                        📄 <strong>What to expect (from the paper, Fig. 6):</strong>
+                        After retargeting, Video B's digit(s) should quickly adopt the trajectory of Video A
+                        within 1–2 steps, while their visual identity (shape, colour) is preserved.
+                        Note that the paper demonstrates this on PhyWorld physics sequences; here on Moving MNIST,
+                        the effect is analogous but the identity preservation depends on how cleanly
+                        <code>z<sub>t</sub></code> and <code>u<sub>t</sub></code> have separated.
+                        <strong>Video B is highlighted in orange because its motion is about to be overwritten.</strong>
+                    </div> -->
+
+                    <!-- Horizontal 4-box layout: [Init A] [Output A] [Init B] [Output B] -->
+                    <div class="canvas-row-horizontal">
+                        <div class="canvas-wrapper">
+                            <span>Initial Digits A</span>
+                            <canvas id="c3-a" width="128" height="128"></canvas>
+                            <button class="btn-outline btn clear-btn" onclick="window.p3ADraw?.clear()">Clear A</button>
+                        </div>
+                        <div class="canvas-wrapper">
+                            <span>Output Video A (motion source)</span>
+                            <canvas id="c3-out-a" class="output-canvas" width="256" height="256"></canvas>
+                        </div>
+                        <div class="canvas-wrapper">
+                            <span>Output Video B (motion target)</span>
+                            <canvas id="c3-out-b" class="output-canvas" width="256" height="256" style="border-color:#d97706;box-shadow:0 0 0 2px #fef3c7;"></canvas>
+                            <div class="corrupt-badge">⚡ Receives A's trajectory</div>
+                        </div>
+                        <div class="canvas-wrapper">
+                            <span>Initial Digits B</span>
+                            <canvas id="c3-b" width="128" height="128"></canvas>
+                            <!-- <div class="corrupt-badge">⚡ Motion will be overwritten</div> -->
+                            <button class="btn-outline btn clear-btn" onclick="window.p3BDraw?.clear()">Clear B</button>
+                        </div>
+                    </div>
+
+                    <div class="controls-row">
+                        <button id="p3-run" class="btn btn-primary">▶ Restart Simulation</button>
+                        <button id="p3-start-retarget" class="btn btn-primary" style="background:#b91c1c;">✨ Start Retargeting</button>
+                    </div>
+                </div>
+
+            </div><!-- /#playgrounds-wrapper -->
+        </div><!-- /.pg-wrap-relative -->
+
+    </div><!-- /.playground-section -->
+
+    <!-- CITATION -->
     <h2>Citation</h2>
     <pre class="citation-box">@misc{nzoyem2026render,
     title={Render, Don't Decode: Weight-Space World Models with Latent Structural Disentanglement},
@@ -535,18 +869,19 @@
 }</pre>
 
     <h2>Acknowledgements</h2>
-    <p style="margin-bottom: 2rem;">This work is supported by the University of Manchester and the University of Bristol. We thank the open-source community for Equinox and JAX tools which made the development of NOVA possible.</p>
+    <p style="margin-bottom:2rem; margin-top:1rem;">This work was supported by the University of Manchester and the University of Bristol. We thank the open-source community for the various tools and datasets that made the development of NOVA possible.</p>
 
     <footer>
-        <p>NOVA: Weight-Space World Models — Paper @ arXiv 2605.06298 | Code & Models open-sourced</p>
-        <p>Interactive demos powered by ONNX Runtime Web, models run fully locally.</p>
-        <div class="tech-stack">⚡ Powered by JAX, Equinox, Optax, ONNX Runtime, and the open‑source community.</div>
+        <p class="footer-powered">⚡ Interactive demos powered by ONNX Runtime Web.</p>
+        <p>Models run fully locally in your browser — no data is sent to any server.</p>
+        <!-- <div class="tech-stack">⚡ Powered by JAX, Equinox, Optax, ONNX Runtime, and the open‑source community.</div> -->
     </footer>
 </div>
 
 <script>
 (() => {
     const CONFIG = { lam_dim: 4, mem_dim: 256, H: 64, W: 64 };
+    const ACTION_SCALE = 2.5;
 
     const STATE = {
         models: {},
@@ -554,21 +889,19 @@
         busy: false,
         cancelTokens: { p1: 0, p2: 0, p3: 0 },
         dims: {
-            encoderIn: null,
-            encoderOut: null,
-            fdmIn: null,
-            fdmOut: null,
-            idmIn: null,
-            idmOut: null,
-            gcmIn: null,
-            gcmOut: null,
-            rendererIn: null,
-            rendererOut: null,
+            encoderIn: null, encoderOut: null,
+            fdmIn: null, fdmOut: null,
+            idmIn: null, idmOut: null,
+            gcmIn: null, gcmOut: null,
+            rendererIn: null, rendererOut: null,
         }
     };
 
+    /* ── Utilities ────────────────────────────────────────────────── */
     function escapeHtml(value) {
-        return String(value).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#39;');
+        return String(value)
+            .replaceAll('&', '&amp;').replaceAll('<', '&lt;')
+            .replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#39;');
     }
 
     function showStatus(html, kind = 'info', append = false) {
@@ -623,7 +956,6 @@
         for (let i = 0; i < CONFIG.H * CONFIG.W; i++) {
             floatData[i] = imgData[i * 4] / 255.0;
         }
-
         const shape = inferDigitTensorShape(session);
         return new ort.Tensor('float32', floatData, shape);
     }
@@ -634,9 +966,7 @@
     }
 
     function flattenIfNeeded(tensor) {
-        if (tensor.dims.length === 2 && tensor.dims[0] === 1) {
-            return flattenTo1D(tensor);
-        }
+        if (tensor.dims.length === 2 && tensor.dims[0] === 1) return flattenTo1D(tensor);
         return tensor;
     }
 
@@ -644,7 +974,7 @@
         const outputKeys = Object.keys(results).sort((a, b) => {
             const numA = parseInt(a.replace(/\D/g, '')) || -1;
             const numB = parseInt(b.replace(/\D/g, '')) || -1;
-            return numB - numA; 
+            return numB - numA;
         });
         const expectedPixels = CONFIG.H * CONFIG.W;
         for (const key of outputKeys) {
@@ -676,7 +1006,7 @@
         for (let i = 0; i < expectedPixels; i++) {
             const v = Math.max(0, Math.min(1, Number(pixels[i])));
             const c = Math.round(v * 255);
-            imageData.data[i * 4] = c;
+            imageData.data[i * 4]     = c;
             imageData.data[i * 4 + 1] = c;
             imageData.data[i * 4 + 2] = c;
             imageData.data[i * 4 + 3] = 255;
@@ -687,6 +1017,7 @@
         ctx.drawImage(tempCanvas, 0, 0, outCanvas.width, outCanvas.height);
     }
 
+    /* ── DrawingCanvas class ──────────────────────────────────────── */
     class DrawingCanvas {
         constructor(canvasId) {
             this.canvas = document.getElementById(canvasId);
@@ -695,7 +1026,7 @@
             if (!this.canvas) return;
 
             this.ctx = this.canvas.getContext('2d', { willReadFrequently: true });
-            this.ctx.lineWidth = 6; 
+            this.ctx.lineWidth = 5;
             this.ctx.lineCap = 'round';
             this.ctx.lineJoin = 'round';
             this.ctx.strokeStyle = 'white';
@@ -736,7 +1067,6 @@
             this.canvas.addEventListener('mousemove', moveDraw);
             window.addEventListener('mouseup', endDraw);
             this.canvas.addEventListener('mouseleave', endDraw);
-
             this.canvas.addEventListener('touchstart', startDraw, { passive: false });
             this.canvas.addEventListener('touchmove', moveDraw, { passive: false });
             window.addEventListener('touchend', endDraw);
@@ -754,6 +1084,7 @@
         }
     }
 
+    /* ── Model access helpers ─────────────────────────────────────── */
     function getSession(name) {
         const session = STATE.models[name];
         if (!session) throw new Error(`Model "${name}" is not loaded.`);
@@ -764,6 +1095,30 @@
         return new ort.Tensor('float32', new Float32Array(size), [size]);
     }
 
+    /* ── Caching layer (Cache API) ────────────────────────────────── */
+    const MODEL_CACHE_NAME = 'nova-models-v1';
+
+    async function fetchModelCached(path) {
+        // If Cache API is not available, fall back to plain fetch
+        if (!('caches' in window)) {
+            const resp = await fetch(path);
+            if (!resp.ok) throw new Error(`Failed to fetch ${path}: ${resp.status}`);
+            return await resp.arrayBuffer();
+        }
+        const cache = await caches.open(MODEL_CACHE_NAME);
+        const cached = await cache.match(path);
+        if (cached) {
+            console.log(`[NOVA cache] HIT — ${path}`);
+            return await cached.arrayBuffer();
+        }
+        console.log(`[NOVA cache] MISS — fetching ${path}`);
+        const resp = await fetch(path);
+        if (!resp.ok) throw new Error(`Failed to fetch ${path}: ${resp.status}`);
+        await cache.put(path, resp.clone());
+        return await resp.arrayBuffer();
+    }
+
+    /* ── Inference helpers ────────────────────────────────────────── */
     async function runEncoder(imgTensor) {
         const session = getSession('encoder');
         const feeds = { [session.inputNames[0]]: imgTensor };
@@ -780,7 +1135,9 @@
         const u1d = (u.dims.length === 1) ? u : flattenTo1D(u);
         const feeds = { [session.inputNames[0]]: z1d, [session.inputNames[1]]: u1d };
         const results = await session.run(feeds);
-        const outputKeys = Object.keys(results).filter(key => key !== session.inputNames[0] && key !== session.inputNames[1]).sort((a,b)=> (parseInt(a.replace(/\D/g,''))||-1) - (parseInt(b.replace(/\D/g,''))||-1));
+        const outputKeys = Object.keys(results)
+            .filter(key => key !== session.inputNames[0] && key !== session.inputNames[1])
+            .sort((a, b) => (parseInt(a.replace(/\D/g,'')) || -1) - (parseInt(b.replace(/\D/g,'')) || -1));
         let out = results[outputKeys[0]];
         return (out.dims.length === 2 && out.dims[0] === 1) ? flattenTo1D(out) : out;
     }
@@ -796,7 +1153,7 @@
         for (let outName of session.outputNames) {
             const t = results[outName];
             if (t.data.length === CONFIG.lam_dim) u_next = t;
-            if (t.data.length === CONFIG.mem_dim) m_next = t;
+            if (t.data.length === CONFIG.mem_dim)  m_next = t;
         }
         if (!u_next || !m_next) throw new Error('GCM outputs missing');
         if (u_next.dims.length === 2 && u_next.dims[0] === 1) u_next = flattenTo1D(u_next);
@@ -817,8 +1174,6 @@
         return new ort.Tensor('float32', coords, [CONFIG.H, CONFIG.W, 3]);
     }
 
-    function prepareInputTensor(session, tensor, inputIndex = 0, context = 'input') { return tensor; }
-
     async function runRenderer(z, outCanvas) {
         const session = getSession('renderer');
         const coordsTensor = buildCoordsTensor(session);
@@ -829,21 +1184,26 @@
         return out;
     }
 
+    /* ── UI state helpers ─────────────────────────────────────────── */
     function setLoadUI(loaded) {
         const wrapper = document.getElementById('playgrounds-wrapper');
-        const btn = document.getElementById('load-models-btn');
+        const hint    = document.getElementById('pg-load-hint');
+        const btn     = document.getElementById('load-models-btn');
         if (loaded) {
             wrapper.classList.remove('disabled-playground');
-            btn.textContent = '✅ Models Loaded';
+            if (hint) hint.style.display = 'none';
+            btn.textContent = 'Playgrounds Activated';
             btn.disabled = true;
         } else {
             wrapper.classList.add('disabled-playground');
-            btn.textContent = '🚀 Load Models & Activate Playgrounds';
+            if (hint) hint.style.display = 'flex';
+            btn.textContent = 'Activate Playgrounds';
             btn.disabled = false;
         }
     }
 
     async function loadModelsAndActivate() {
+        if (STATE.loaded) return;
         const loadBtn = document.getElementById('load-models-btn');
         loadBtn.disabled = true;
         document.getElementById('loading-overlay').style.display = 'flex';
@@ -851,28 +1211,48 @@
             if (!window.ort) throw new Error('ONNX Runtime Web failed to load.');
             ort.env.wasm.numThreads = 1;
             const sessionOptions = { executionProviders: ['cpu'], graphOptimizationLevel: 'disabled' };
-            const modelMap = { encoder: 'models/encoder_quant.onnx', fdm: 'models/fdm_quant.onnx', gcm: 'models/gcm_step_quant.onnx', renderer: 'models/renderer.onnx' };  /* @TODO renderer_quant has issues! */
-            for (const [name, path] of Object.entries(modelMap)) STATE.models[name] = await ort.InferenceSession.create(path, sessionOptions);
+            const modelMap = {
+                encoder: 'models/encoder_quant.onnx',
+                fdm:     'models/fdm_quant.onnx',
+                gcm:     'models/gcm_step_quant.onnx',
+                renderer:'models/renderer.onnx'  /* renderer_quant has issues */
+            };
+            for (const [name, path] of Object.entries(modelMap)) {
+                showStatus(`Loading <code>${name}</code>…`, 'info');
+                const buf = await fetchModelCached(path);
+                STATE.models[name] = await ort.InferenceSession.create(buf, sessionOptions);
+            }
             STATE.loaded = true;
             setLoadUI(true);
-            document.getElementById('load-status').innerHTML = '<span style="color:#16a34a;">✅ Models ready. Playgrounds active.</span>';
+            document.getElementById('load-status').innerHTML =
+                '<span style="color:#16a34a;">✅ Models loaded successfully, and playgrounds active.</span>';
         } catch (err) {
             console.error(err);
             STATE.loaded = false;
             setLoadUI(false);
-            document.getElementById('load-status').innerHTML = `<div class="error-msg">❌ Failed: ${escapeHtml(err.message)}</div>`;
-        } finally { document.getElementById('loading-overlay').style.display = 'none'; }
+            document.getElementById('load-status').innerHTML =
+                `<div class="error-msg">❌ Failed: ${escapeHtml(err.message)}</div>`;
+        } finally {
+            document.getElementById('loading-overlay').style.display = 'none';
+        }
     }
 
+    /* ── Cancel token helpers ─────────────────────────────────────── */
     function stopPlayground(key) { STATE.cancelTokens[key] += 1; }
-    function newPlayToken(key) { STATE.cancelTokens[key] += 1; return STATE.cancelTokens[key]; }
+    function newPlayToken(key)   { STATE.cancelTokens[key] += 1; return STATE.cancelTokens[key]; }
     function isTokenActive(key, token) { return STATE.cancelTokens[key] === token; }
 
+    /* ── Playground controls ──────────────────────────────────────── */
     function bindPlaygroundControls() {
+
+        // ── PLAYGROUND 1: Content Retargeting ───────────────────────
         let p1_z = null, p1_m = null, p1_u = null;
+        let p1_pendingReplace = null;
+
         document.getElementById('p1-restart').addEventListener('click', async () => {
             if (!STATE.loaded) return showError('Load models first.');
             const token = newPlayToken('p1');
+            p1_pendingReplace = null;
             try {
                 p1_z = await runEncoder(window.p1Draw.getTensor(getSession('encoder')));
                 p1_m = createZeros([CONFIG.mem_dim]);
@@ -880,24 +1260,34 @@
                 while (isTokenActive('p1', token)) {
                     const g = await runGCM(p1_m, p1_z, p1_u);
                     if (!isTokenActive('p1', token)) return;
-                    p1_u = g.u_next; p1_m = g.m_next;
+                    p1_u = g.u_next;
+                    p1_m = g.m_next;
+                    if (p1_pendingReplace) {
+                        p1_z = await p1_pendingReplace;
+                        p1_pendingReplace = null;
+                    }
                     p1_z = await runFDM(p1_z, p1_u);
                     if (!isTokenActive('p1', token)) return;
                     await runRenderer(p1_z, document.getElementById('c1-out'));
-                    await new Promise(resolve => setTimeout(resolve, 40));
+                    await new Promise(resolve => setTimeout(resolve, 100));
                 }
             } catch (err) { showError(`Playground 1 error: ${err.message}`); }
         });
+
         document.getElementById('p1-replace').addEventListener('click', async () => {
             if (!STATE.loaded) return showError('Load models first.');
             if (!p1_z) { showError('Start simulation first.'); return; }
-            p1_z = await runEncoder(window.p1AlienDraw.getTensor(getSession('encoder')));
+            p1_pendingReplace = (async () => {
+                return await runEncoder(window.p1AlienDraw.getTensor(getSession('encoder')));
+            })();
         });
 
+        // ── PLAYGROUND 2: Action Interpolation / Click Steering ──────
         let p2_z = null, p2_m = null, p2_u = null;
         let p2_override_active = [false, false, false, false];
         let p2_override_values = [0,0,0,0];
         let p2_interp = { active: false, step: 0, total: 20, start: [0,0,0,0], target: [0,0,0,0], digit: 1 };
+
         document.getElementById('p2-restart').addEventListener('click', async () => {
             if (!STATE.loaded) return showError('Load models first.');
             const token = newPlayToken('p2');
@@ -913,35 +1303,47 @@
                     p2_m = g.m_next;
                     let next_u_data = new Float32Array(g.u_next.data);
                     if (p2_interp.active) {
-                        p2_interp.step++; let progress = Math.min(1, p2_interp.step / p2_interp.total);
+                        p2_interp.step++;
+                        let progress = Math.min(1, p2_interp.step / p2_interp.total);
                         const offset = (p2_interp.digit === 1) ? 0 : 2;
-                        p2_override_values[offset] = p2_interp.start[offset] + (p2_interp.target[offset] - p2_interp.start[offset]) * progress;
+                        p2_override_values[offset]   = p2_interp.start[offset]   + (p2_interp.target[offset]   - p2_interp.start[offset])   * progress;
                         p2_override_values[offset+1] = p2_interp.start[offset+1] + (p2_interp.target[offset+1] - p2_interp.start[offset+1]) * progress;
                         if (p2_interp.step >= p2_interp.total) p2_interp.active = false;
                     }
-                    for (let i=0;i<4;i++) if(p2_override_active[i]) next_u_data[i] = p2_override_values[i];
+                    for (let i = 0; i < 4; i++) if (p2_override_active[i]) next_u_data[i] = p2_override_values[i];
                     p2_u = new ort.Tensor('float32', next_u_data, g.u_next.dims);
                     p2_z = await runFDM(p2_z, p2_u);
                     if (!isTokenActive('p2', token)) return;
                     await runRenderer(p2_z, document.getElementById('c2-out'));
-                    await new Promise(resolve => setTimeout(resolve, 50));
+                    await new Promise(resolve => setTimeout(resolve, 100));
                 }
             } catch(err) { showError(`Playground 2 error: ${err.message}`); }
         });
+
         document.getElementById('c2-out').addEventListener('mousedown', async (e) => {
             if (!STATE.loaded || !p2_z || !p2_u) return;
             const rect = e.currentTarget.getBoundingClientRect();
-            const ux = (e.clientX - rect.left) / rect.width * 2 - 1;
-            const uy = (e.clientY - rect.top) / rect.height * 2 - 1;
-            const digit = parseInt(document.getElementById('p2-digit-select').value);
-            const steps = parseInt(document.getElementById('p2-interp-steps').value);
+            let ux = (e.clientX - rect.left) / rect.width  * 2 - 1;
+            let uy = (e.clientY - rect.top)  / rect.height * 2 - 1;
+            ux *= ACTION_SCALE;
+            uy *= ACTION_SCALE;
+            const digit  = parseInt(document.getElementById('p2-digit-select').value);
+            const steps  = parseInt(document.getElementById('p2-interp-steps').value);
             const offset = digit === 1 ? 0 : 2;
-            p2_interp = { active: true, step: 0, total: steps, start: [p2_u.data[0], p2_u.data[1], p2_u.data[2], p2_u.data[3]], target: [0,0,0,0], digit: digit };
-            p2_interp.target[offset] = ux; p2_interp.target[offset+1] = uy;
-            p2_override_active[offset] = true; p2_override_active[offset+1] = true;
+            const start  = [p2_u.data[0], p2_u.data[1], p2_u.data[2], p2_u.data[3]];
+            const target = [...start];
+            target[offset]     = ux;
+            target[offset + 1] = uy;
+            p2_interp = { active: true, step: 0, total: steps, start, target, digit };
+            p2_override_active[offset]     = true;
+            p2_override_active[offset + 1] = true;
         });
 
-        let p3A_z=null,p3A_m=null,p3A_u=null,p3B_z=null,p3B_m=null,p3B_u=null, p3_retargetActive=false;
+        // ── PLAYGROUND 3: Motion Retargeting ────────────────────────
+        let p3A_z=null, p3A_m=null, p3A_u=null;
+        let p3B_z=null, p3B_m=null, p3B_u=null;
+        let p3_retargetActive = false;
+
         document.getElementById('p3-run').addEventListener('click', async () => {
             if (!STATE.loaded) return showError('Load models first.');
             const token = newPlayToken('p3');
@@ -951,34 +1353,68 @@
                 p3A_m = createZeros([CONFIG.mem_dim]); p3A_u = createZeros([CONFIG.lam_dim]);
                 p3B_z = await runEncoder(window.p3BDraw.getTensor(getSession('encoder')));
                 p3B_m = createZeros([CONFIG.mem_dim]); p3B_u = createZeros([CONFIG.lam_dim]);
-                let stepCount=0;
-                while (isTokenActive('p3', token) && stepCount<120) {
+                let stepCount = 0;
+                while (isTokenActive('p3', token) && stepCount < 1000) {
                     const gA = await runGCM(p3A_m, p3A_z, p3A_u);
                     if (!isTokenActive('p3', token)) return;
-                    p3A_u = gA.u_next; p3A_m = gA.m_next; p3A_z = await runFDM(p3A_z, p3A_u);
+                    p3A_u = gA.u_next; p3A_m = gA.m_next;
+                    p3A_z = await runFDM(p3A_z, p3A_u);
+
                     const gB = await runGCM(p3B_m, p3B_z, p3B_u);
                     if (!isTokenActive('p3', token)) return;
-                    p3B_m = gB.m_next; p3B_u = p3_retargetActive ? p3A_u : gB.u_next;
+                    p3B_m = gB.m_next;
+                    p3B_u = p3_retargetActive ? p3A_u : gB.u_next;
                     p3B_z = await runFDM(p3B_z, p3B_u);
+
                     await runRenderer(p3A_z, document.getElementById('c3-out-a'));
                     await runRenderer(p3B_z, document.getElementById('c3-out-b'));
-                    stepCount++; await new Promise(resolve => setTimeout(resolve, 50));
+                    stepCount++;
+                    await new Promise(resolve => setTimeout(resolve, 100));
                 }
             } catch(err) { showError(`Playground 3 error: ${err.message}`); }
         });
-        document.getElementById('p3-start-retarget').addEventListener('click', () => { if(STATE.loaded) p3_retargetActive = true; else showError('Models not loaded.'); });
+
+        document.getElementById('p3-start-retarget').addEventListener('click', () => {
+            if (STATE.loaded) p3_retargetActive = true;
+            else showError('Models not loaded.');
+        });
     }
 
+    /* ── Static UI bindings ───────────────────────────────────────── */
     function bindStaticUI() {
-        document.getElementById('go-to-playground').addEventListener('click', (e) => { e.preventDefault(); document.getElementById('playground-main').scrollIntoView({ behavior: 'smooth' }); });
+        document.getElementById('go-to-playground').addEventListener('click', (e) => {
+            e.preventDefault();
+            document.getElementById('playground-main').scrollIntoView({ behavior: 'smooth' });
+        });
+
+        // Primary load button
         document.getElementById('load-models-btn').addEventListener('click', loadModelsAndActivate);
+
+        // Click-anywhere-on-hint overlay
+        const hint = document.getElementById('pg-load-hint');
+        if (hint) {
+            hint.addEventListener('click', (e) => {
+                e.stopPropagation();
+                loadModelsAndActivate();
+            });
+        }
+
+        // Interpolation step display
+        const interpSlider = document.getElementById('p2-interp-steps');
+        const interpDisplay = document.getElementById('interp-value-display');
+        if (interpSlider && interpDisplay) {
+            interpSlider.addEventListener('input', () => {
+                interpDisplay.textContent = interpSlider.value;
+            });
+        }
     }
 
-    window.p1Draw = new DrawingCanvas('c1-init');
+    /* ── Initialise drawing canvases ──────────────────────────────── */
+    window.p1Draw      = new DrawingCanvas('c1-init');
     window.p1AlienDraw = new DrawingCanvas('c1-alien');
-    window.p2Draw = new DrawingCanvas('c2-init');
-    window.p3ADraw = new DrawingCanvas('c3-a');
-    window.p3BDraw = new DrawingCanvas('c3-b');
+    window.p2Draw      = new DrawingCanvas('c2-init');
+    window.p3ADraw     = new DrawingCanvas('c3-a');
+    window.p3BDraw     = new DrawingCanvas('c3-b');
 
     bindStaticUI();
     bindPlaygroundControls();

@@ -1,6 +1,6 @@
-# V-WARP (Video-Weight-space Adaptive Recurrent Prediction)
+# NOVA (Neural Ontology for Visual Abstraction)
 
-V-WARP unifies world modelling and video generation by actively modulating the weights of an Implicit Neural Representation (INR) to render future frames. Instead of operating purely in abstract latent spaces, V-WARP's physics-driven approach ensures spatial consistency via its Coordinate-Based rendering structure.
+NOVA unifies world modelling and video generation by actively modulating the weights of an Implicit Neural Representation (INR) to render future frames. Instead of operating purely in abstract latent spaces, NOVA's strutured approach ensures super-resolution via its analytical coordinate-based rendering structure.
 
 ## Folder Structure
 
