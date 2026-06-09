@@ -578,12 +578,7 @@
 
     <div class="abstract-box">
         <h3 style="margin-top:0;">Abstract</h3>
-        <p>Training world models on vast quantities of unlabelled videos is a critical step toward fully autonomous intelligence.
-        We introduce NOVA, a world modelling framework that represents the system state as the weights and biases of an auxiliary
-        coordinate-based implicit neural representation (INR). This structured representation is analytically rendered, eliminating the decoder bottleneck
-        while conferring compactness, portability, and zero-shot super-resolution. NOVA naturally disentangles structural scene components — background,
-        foreground, and inter-frame motion — enabling users to edit content or dynamics without compromising the other. We validate our framework on
-        a diverse set of datasets, achieving strong controllable forecasting on a single consumer GPU.</p>
+        <p>Training world models on vast quantities of unlabelled videos is a critical step toward fully autonomous intelligence. However, the prevailing paradigm of encoding raw pixels into opaque latent spaces and relying on heavy decoders for reconstruction leaves these models computationally expensive and uninterpretable. We address this problem by introducing NOVA, a world modelling framework that represents the system state as the weights and biases of an auxiliary coordinate-based implicit neural representation (INR). This structured representation is analytically rendered, which eliminates the decoder bottleneck while conferring compactness, portability, and zero-shot super-resolution. Furthermore, like most latent action models, NOVA can be distilled into a context-dependent video generator via an action-matching objective. Surprisingly, without resorting to auxiliary losses or adversarial objectives, can disentangle structural scene components such as background, foreground, and inter-frame motion, enabling users to edit either content or dynamics without compromising the other. We validate our framework on several challenging datasets, achieving strong controllable forecasting while operating on a single consumer GPU at 40M parameters. Ultimately, structured representations like INRs not only enhance our understanding of latent dynamics but also pave the way for immersive and customisable virtual experiences.</p>
     </div>
 
     <div class="problem-box">
