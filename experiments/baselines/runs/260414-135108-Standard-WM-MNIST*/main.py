@@ -1906,3 +1906,34 @@ plot_videos(
 
 ## Save the numpy arrays for later use in the paper or website
 np.save(artefacts_path / f"naive_long_horizon_ID{test_seq_id}_T{total_length}.npy", output_video)
+
+
+#%%
+## Traverse the test set and generate all the long-horizon sequences for the entire test set. Save the result as a sequence of shape (N_test, T_total, H, W, C) for later use in the paper or website. Save the ground thuth videos as well for comparison; these are shape (N_test, 20, H, W, C) and can be used to compute metrics like MSE, PSNR, SSIM, etc. for the long-horizon forecasts.
+
+long_horizon_videos = []
+long_horizon_ground_truth = []
+
+for batch_idx, batch_videos in enumerate(tqdm(test_loader, desc="Generating long-horizon forecasts for test set")):
+    for seq_idx in range(batch_videos.shape[0]):
+        input_video = batch_videos[seq_idx]
+        input_video = jnp.concatenate([input_video, jnp.zeros((total_length - input_video.shape[0], H, W, C))], axis=0)
+        output_video = inference_rollout_morph(model_final, input_video, coords_grid, 2/20)
+        long_horizon_videos.append(output_video)
+
+        long_horizon_ground_truth.append(batch_videos[seq_idx])
+
+        # if seq_idx == 3:
+        #     break
+
+    if batch_idx == 0:
+        break
+
+
+#%%
+print(f"\nShape of long-horizon videos: {np.array(long_horizon_videos).shape}")
+
+
+np.savez(artefacts_path / f"naive_long_horizon_all_test_set_T{total_length}.npz",
+         predictions=np.array(long_horizon_videos),
+         ground_truth=np.array(long_horizon_ground_truth))

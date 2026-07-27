@@ -1853,6 +1853,35 @@ np.save(artefacts_path / f"vwarp_long_horizon_ID{test_seq_id}_T{total_length}.np
 
 
 
+#%%
+## Traverse the test set and generate all the long-horizon sequences for the entire test set. Save the result as a sequence of shape (N_test, T_total, H, W, C) for later use in the paper or website. Save the ground thuth videos as well for comparison; these are shape (N_test, 20, H, W, C) and can be used to compute metrics like MSE, PSNR, SSIM, etc. for the long-horizon forecasts.
+
+long_horizon_videos = []
+long_horizon_ground_truth = []
+
+for batch_idx, batch_videos in enumerate(tqdm(test_loader, desc="Generating long-horizon forecasts for test set")):
+    for seq_idx in range(batch_videos.shape[0]):
+        input_video = batch_videos[seq_idx]
+        input_video = jnp.concatenate([input_video, jnp.zeros((total_length - input_video.shape[0], H, W, C))], axis=0)
+        output_video = inference_rollout_morph(model_final, input_video, coords_grid, 2/20)
+        long_horizon_videos.append(output_video)
+
+        long_horizon_ground_truth.append(batch_videos[seq_idx])
+
+        # if seq_idx == 3:
+        #     break
+
+    if batch_idx == 0:
+        break
+
+
+#%%
+print(f"\nShape of long-horizon videos: {np.array(long_horizon_videos).shape}")
+
+
+np.savez(artefacts_path / f"vwarp_long_horizon_all_test_set_T{total_length}.npz",
+         predictions=np.array(long_horizon_videos),
+         ground_truth=np.array(long_horizon_ground_truth))
 
 
 
@@ -1862,7 +1891,7 @@ np.save(artefacts_path / f"vwarp_long_horizon_ID{test_seq_id}_T{total_length}.np
 
 
 
-#%% Cell 7: Calculating Spatio-Temporal Metrics Across Test Set
+##%% Cell 7: Calculating Spatio-Temporal Metrics Across Test Set
 #%% Cell 7: Calculating Spatio-Temporal Metrics Across Test Set
 import time
 import numpy as np
@@ -1949,6 +1978,27 @@ print("-" * 54)
 print(f"Evaluation took {time.strftime('%H:%M:%S', time.gmtime(time.time() - start_time))}")
 
 
+
+#%% Same metrics as above, but now including the stadard deviation across the test set
+print("\n=== Calculating Spatio-Temporal Error Metrics with Standard Deviation ===")
+
+final_mse_std = np.std(mse_list)
+final_mae_std = np.std(mae_list)
+final_rmse_std = np.std(np.sqrt(mse_list))
+final_psnr_std = np.std(psnr_list)
+final_ssim_std = np.std(ssim_list)
+
+print("\n" + "-"*54)
+print("  Test Set Results (Averaged across all sequences)")
+print(f"  Context Frames: {num_context_frames}")
+print("-" * 54)
+print(f"  Mean Squared Error (MSE):          {final_mse:.4f} ± {final_mse_std:.4f}")
+print(f"  Mean Absolute Error (MAE):         {final_mae:.4f} ± {final_mae_std:.4f}")
+print(f"  Root Mean Squared Error (RMSE):    {final_rmse:.4f} ± {final_rmse_std:.4f}")
+print(f"  Peak Signal-to-Noise Ratio (PSNR): {final_psnr:.4f} ± {final_psnr_std:.4f}")
+print(f"  Structural Similarity (SSIM):      {final_ssim:.4f} ± {final_ssim_std:.4f}")
+print("-" * 54) 
+print(f"Evaluation took {time.strftime('%H:%M:%S', time.gmtime(time.time() - start_time))}")
 
 
 
