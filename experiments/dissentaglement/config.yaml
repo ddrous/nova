@@ -1,0 +1,70 @@
+# Flip only model.mode to choose the experiment:
+#   weight_ab      = weight-space encoder/renderer + A(z)+B(a) forward dynamics
+#   weight_joint   = weight-space encoder/renderer + one monolithic MLP forward dynamics
+#   standard_ab    = ConvNet encoder/decoder + A(z)+B(a) forward dynamics
+#   standard_joint = ConvNet encoder/decoder + one monolithic MLP forward dynamics
+# Legacy alias: standard -> standard_joint (kept only so v1 checkpoints still load).
+seed: 2026
+debug: false
+
+run:
+  base_dir: runs
+  load_dir: null              # used only when train.enabled=false
+
+simulation:
+  image_size: 64
+  shape_size: 9.0
+  num_frames: 3               # preferred setting: exactly 8 simulator factors
+  rotation_bins: 40
+  velocity_values: [-4, 0, 4] # every sampled velocity is a multiple of four
+  fixed_parameters: {}
+
+# The simulator is called inside the iterable dataset for every sample.
+data:
+  train_samples_per_epoch: 4096
+  eval_samples: 512
+  batch_size: 16
+  num_workers: 0
+
+model:
+  mode: weight_ab
+  root_activation: relu
+  root_width: 8
+  root_depth: 5
+  num_fourier_freqs: 6
+  use_time_in_root: false
+  weight_cnn_width: 32
+  weight_cnn_depth: 4
+  standard_cnn_width: 16     # encoder+decoder count is close to WeightCNN at 64x64
+  fdm_width_multiplier_ab: 1.4     # parameter-matches A/B against the joint FDM
+  fdm_width_multiplier_joint: 2.0
+  action_dim: 32
+  discrete_actions: false
+  num_actions: 9             # only used when discrete_actions=true
+
+train:
+  enabled: true
+  epochs: 20
+  learning_rate: 1.0e-4
+  min_lr_ratio: 0.05
+  weight_decay: 1.0e-6
+  grad_clip: 1.0
+  print_every: 1
+  visualise_every: 2
+  eval_batches: 8
+  latent_target_stop_gradient: true
+  loss_weights:
+    reconstruction: 1.0      # phase-1 objective, now trained jointly
+    rollout_pixel: 1.0       # phase-2 pixel rollout objective
+    latent_dynamics: 0.05
+    vq_codebook: 1.0
+    vq_commitment: 0.25
+
+disentanglement:
+  pairs_per_feature: 16      # L in the beta-VAE metric
+  train_features_per_factor: 256
+  test_features_per_factor: 128
+  representation_batch_size: 128
+  feature_chunk_size: 16
+  classifier_max_iter: 3000
+  seed: 991
