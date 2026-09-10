@@ -78,3 +78,4 @@ disentanglement:
   classifier_max_iter: 300
   seed: 991
   video_repreentation: state_actions
+  horizon: 10
