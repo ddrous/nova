@@ -34,6 +34,11 @@ if len(sys.argv) > 1 and Path(sys.argv[1]).suffix in (".yaml", ".yml") and Path(
 with open(CONFIG_PATH, "r") as f:
     CONFIG = yaml.safe_load(f)
 
+# Canonicalise the optional ABC spelling before encoder lookup/run-folder creation.
+# The supported new modes are weight_abc and standard_abc.
+if CONFIG.get("model", {}).get("mode") == "standar_abc":
+    CONFIG["model"]["mode"] = "standard_abc"
+
 TRAIN = bool(CONFIG.get("phase_2", {}).get("enabled", True))
 
 if TRAIN:
@@ -104,6 +109,7 @@ print(f"Total model parameters: {count_trainable_params(model):,}")
 print(f"  frozen encoder: {count_trainable_params(model.encoder):,}")
 print(f"  frozen decoder: {count_trainable_params(model.decoder) if model.decoder is not None else 0:,}")
 print(f"  trainable FDM: {count_trainable_params(model.transition_model):,}")
+print(f"  FDM type: {model.transition_model.forward_mode}")
 print(f"  trainable IDM/action: {count_trainable_params(model.action_model):,}")
 
 # Only this tuple is differentiated/updated in phase 2.

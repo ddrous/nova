@@ -36,7 +36,7 @@ data:
   num_workers: 0
 
 model:
-  mode: standard_joint
+  mode: weight_abc
   root_activation: relu
   root_width: 8
   root_depth: 5
@@ -54,7 +54,7 @@ model:
 # Shared numerical hyperparameters. These are unchanged from the supplied wm_train.py.
 # Phase 1 uses only reconstruction; phase 2 uses rollout/dynamics/VQ terms.
 train:
-  epochs: 50
+  epochs: 500
   learning_rate: 1.0e-5
   min_lr_ratio: 0.05
   weight_decay: 1.0e-6

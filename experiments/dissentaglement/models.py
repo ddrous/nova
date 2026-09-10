@@ -127,28 +127,50 @@ class ConvDecoder(eqx.Module):
 class ForwardDynamicsModule(eqx.Module):
     mlp_A: Optional[eqx.nn.MLP]
     mlp_B: Optional[eqx.nn.MLP]
+    mlp_C: Optional[eqx.nn.MLP]
     giant_mlp: Optional[eqx.nn.MLP]
-    split_forward: bool = eqx.field(static=True)
+    forward_mode: str = eqx.field(static=True)
 
-    def __init__(self, dyn_dim, action_dim, split_forward, key, width=None):
-        self.split_forward = split_forward
-        k1, k2, k3 = jax.random.split(key, 3)
+    def __init__(self, dyn_dim, action_dim, forward_mode, key, width=None):
+        self.forward_mode = str(forward_mode)
+        if self.forward_mode not in ("ab", "abc", "joint"):
+            raise ValueError(f"forward_mode must be 'ab', 'abc', or 'joint'; got {forward_mode!r}")
+
+        k1, k2, k3, k4 = jax.random.split(key, 4)
         width = dyn_dim * 2 if width is None else int(width)
         depth = 3
-        if split_forward:
+
+        if self.forward_mode in ("ab", "abc"):
+            # A and B independently map state and action into the same latent-sized
+            # intermediate representation. ABC differs only in how they are fused.
             self.mlp_A = eqx.nn.MLP(dyn_dim, dyn_dim, width_size=width, depth=depth, key=k1)
             self.mlp_B = eqx.nn.MLP(action_dim, dyn_dim, width_size=width, depth=depth, key=k2)
             self.giant_mlp = None
+
+            if self.forward_mode == "abc":
+                self.mlp_C = eqx.nn.MLP(
+                    2 * dyn_dim, dyn_dim, width_size=width, depth=depth, key=k3
+                )
+            else:
+                self.mlp_C = None
         else:
             self.mlp_A = None
             self.mlp_B = None
-            self.giant_mlp = eqx.nn.MLP(dyn_dim + action_dim, dyn_dim, width_size=width, depth=depth, key=k3)
+            self.mlp_C = None
+            self.giant_mlp = eqx.nn.MLP(
+                dyn_dim + action_dim, dyn_dim, width_size=width, depth=depth, key=k4
+            )
 
     def __call__(self, z_prev, action):
-        if self.split_forward:
+        if self.forward_mode in ("ab", "abc"):
             z_a = self.mlp_A(z_prev)
             z_b = self.mlp_B(action)
-            return (z_a, z_b), z_a + z_b
+            if self.forward_mode == "ab":
+                z_next = z_a + z_b
+            else:
+                z_next = self.mlp_C(jnp.concatenate([z_a, z_b]))
+            return (z_a, z_b), z_next
+
         out = self.giant_mlp(jnp.concatenate([z_prev, action]))
         return None, out
 
@@ -187,7 +209,7 @@ class LatentActionModule(eqx.Module):
         return raw, self.embeddings(idx), idx
 
 
-#%% Unified four-mode world model
+#%% Unified six-mode world model
 class WorldModel(eqx.Module):
     encoder: eqx.Module
     decoder: Optional[ConvDecoder]
@@ -204,9 +226,17 @@ class WorldModel(eqx.Module):
 
     def __init__(self, config, frame_shape, key):
         requested_mode = config["model"]["mode"]
-        # Backwards compatibility for v1 runs: standard meant standard + joint FDM.
-        self.mode = "standard_joint" if requested_mode == "standard" else requested_mode
-        valid_modes = ("weight_ab", "weight_joint", "standard_ab", "standard_joint")
+        # Backwards compatibility for v1 runs, plus a forgiving alias for the
+        # common misspelling "standar_abc". The canonical name is standard_abc.
+        aliases = {
+            "standard": "standard_joint",
+            "standar_abc": "standard_abc",
+        }
+        self.mode = aliases.get(requested_mode, requested_mode)
+        valid_modes = (
+            "weight_ab", "weight_abc", "weight_joint",
+            "standard_ab", "standard_abc", "standard_joint",
+        )
         if self.mode not in valid_modes:
             raise ValueError(f"model.mode must be one of {valid_modes}; got {requested_mode!r}")
 
@@ -243,13 +273,28 @@ class WorldModel(eqx.Module):
             self.decoder = ConvDecoder(C, self.latent_dim, (H, W), width, k_dec)
             self.unravel_fn = None
 
-        split_forward = self.mode.endswith("_ab")
-        width_key = "fdm_width_multiplier_ab" if split_forward else "fdm_width_multiplier_joint"
-        fdm_width = round(self.latent_dim * float(config["model"].get(width_key, 2.0)))
+        if self.mode.endswith("_abc"):
+            forward_mode = "abc"
+            width_key = "fdm_width_multiplier_abc"
+            # With d_z=513 and d_u=32, width=d_z gives an ABC FDM of
+            # ~3.181M parameters, within 0.5% of the current A/B and Joint FDMs.
+            default_multiplier = 1.0
+        elif self.mode.endswith("_ab"):
+            forward_mode = "ab"
+            width_key = "fdm_width_multiplier_ab"
+            default_multiplier = 2.0
+        else:
+            forward_mode = "joint"
+            width_key = "fdm_width_multiplier_joint"
+            default_multiplier = 2.0
+
+        fdm_width = round(
+            self.latent_dim * float(config["model"].get(width_key, default_multiplier))
+        )
         self.transition_model = ForwardDynamicsModule(
             self.latent_dim,
             self.action_dim,
-            split_forward=split_forward,
+            forward_mode=forward_mode,
             key=k_fwd,
             width=fdm_width,
         )
