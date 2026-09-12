@@ -88,3 +88,4 @@ docs/models/idm.onnx
 # docs/models/renderer.onnx
 
 experiments/dissentaglement/runs/*
+experiments/dissentaglement/plots/*
