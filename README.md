@@ -1,6 +1,6 @@
-# NOVA (Neural Ontology for Visual Abstraction)
+# WINR (World Implicit Neural Representation)
 
-NOVA unifies world modelling and video generation by actively modulating the weights of an Implicit Neural Representation (INR) to render future frames. Instead of operating purely in abstract latent spaces, NOVA's strutured approach ensures super-resolution via its analytical coordinate-based rendering structure.
+WINR unifies world modelling and video generation by actively modulating the weights of an Implicit Neural Representation (INR) to render future frames. Instead of operating purely in abstract latent spaces, WINR's strutured approach ensures super-resolution via its analytical coordinate-based rendering structure.
 
 ## Folder Structure
 
