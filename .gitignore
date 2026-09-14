@@ -6,11 +6,11 @@ torch/__pycache__/*
 jax/__pycache__/*
 *.pyc
 runs/*
-jax_hiddenreps/experiments/*
-neural_data_flow/experiments/*
+jax_hiddenreps/expts/*
+neural_data_flow/expts/*
 
-neural_data_flow/experiments/*
-limit_weight_space/experiments/*
+neural_data_flow/expts/*
+limit_weight_space/expts/*
 limit_weight_space/nohup.log
 
 torch/checkpoints/*
@@ -21,7 +21,7 @@ torch/checkpoints/*
 
 
 latent_action_models/data/*
-latent_action_models/experiments/*
+latent_action_models/expts/*
 latent_action_models/nohup.log
 
 *.log
@@ -74,8 +74,8 @@ baselines/genie-gemini/plots/*
 *.npz
 
 
-plots/long-horizon/*
-!plots/long-horizon/plot.py
+expts/long-horizon/*
+!expts/long-horizon/plot.py
 
 
 docs/legacy/*
@@ -87,5 +87,5 @@ docs/models/idm.onnx
 
 # docs/models/renderer.onnx
 
-experiments/dissentaglement/runs/*
-experiments/dissentaglement/plots/*
+expts/dissentaglement/runs/*
+expts/dissentaglement/plots/*
